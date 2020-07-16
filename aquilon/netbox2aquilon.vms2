@@ -1,0 +1,173 @@
+#!/bin/env python
+
+""" netbox2aquilon - script to extract data out of netbox and use it to create
+aquilon entities."""
+
+import argparse, json, requests, subprocess
+
+NETBOX_API = 'http://netbox.esc.rl.ac.uk/api/'
+DEFAULT_ARCHETYPE = 'rig'
+DEFAULT_OSNAME = 'centos'
+DEFAULT_CPUNAME = 'xeon_e5_2650v4'
+DEFAULT_CPUSPEED = 2200
+DEFAULT_OSVERSION = '7x-x86_64'
+MACHINE_PREFIX = 'netboxvm-'
+AQ_PATH = '/opt/aquilon/bin/aq.py'
+
+def netbox_query(path, parameters, expected_number):
+    """Queries netbox and returns received data
+
+    Takes 3 parameters:
+    path - appended to the netbox api url
+    parameters - dict of parameters to the request
+    expected_number - expected number of responses, probably most useful when
+    only expecting 1 response, can be None.
+    If expected_number is 1 then returns the netbox info for the device,
+    otherwise returns a tuple of the number of responses and the list of
+    responses
+    """
+
+    request = requests.get(NETBOX_API + path, params=parameters,verify="/etc/grid-security/certificates/UKeScienceRoot-2007.pem")
+    jsonoutput = json.loads(request.text)
+
+    # This should only be if you are not searching, but directly accessing
+    # In which case there is no count value and the next if will exit
+    # so return the output before that happens
+    if parameters == None and expected_number == None:
+        return jsonoutput
+
+    if 'count' not in jsonoutput:
+        exit('Error: incorrectly formed response from netbox - no count value')
+
+    if expected_number:
+        if jsonoutput['count'] != expected_number:
+            exit('Unexpected number of responses from netbox: %s, expected %s' \
+                % (jsonoutput['count'], expected_number))
+
+        if expected_number == 1:
+            return jsonoutput['results'][0]
+
+    return jsonoutput['count'], jsonoutput['results']
+
+def copy(opts):
+    """Handles the copying of info to aquilon
+
+    Takes 1 parameter:
+    opts - a dict of options configured from commandline parameters
+
+    Queries netbox three times, for the device, rack and interfaces of the
+    device and runs 3 types of aquilon commands to create the machine, add
+    interfaces to the machine and add a host to the machine
+    """
+
+    cmds = []
+
+    # First query for the device and the rack its in
+
+    hst = netbox_query('virtualization/virtual-machines/', {'name': opts.hostname}, 1)
+
+    # Sanity check host info
+    if not hst['primary_ip']:
+        exit('Error - no primary ip defined for host')
+    if not hst['tenant']:
+        exit('Error - no tenant defined for host')
+
+    #if hst['rack']:
+    #    rck = netbox_query('dcim/racks/%s' % hst['rack']['id'], None, None)
+    #else:
+    #    exit('Error: Host not in rack?')
+
+    # Sanity check rack info
+    #if not rck['facility_id']:
+    #    exit('Error - no facility id for rack')
+    #if type(rck['facility_id']) is str:
+    #    exit('Error - facility id is not numeric')
+
+
+    cmds.append("add_machine --machine %s%d --model %s --rack %s --cpuname %s --cpuspeed %d --cpucount %d --memory %d" \
+        % (MACHINE_PREFIX, hst['id'], opts.model, \
+        opts.rack, DEFAULT_CPUNAME, DEFAULT_CPUSPEED, hst['vcpus'], hst['memory'] ))
+
+
+    cmds.append("add_disk --machine %s%d --disk sda --controller sata --size %d --boot" \
+        % (MACHINE_PREFIX, hst['id'], hst['disk']))
+
+    # Now add interfaces to the machine
+
+    itf_count, itf = netbox_query('virtualization/interfaces/', \
+        {'virtual_machine': opts.hostname}, None)
+
+    unusedintf = 0
+    for i in range(0, itf_count):
+        if itf[i]['mac_address']:
+            cmds.append('add_interface --machine %s%d --mac %s --interface %s' % (
+                MACHINE_PREFIX, hst['id'], itf[i]['mac_address'], itf[i]['name']))
+        else:
+            unusedintf = unusedintf + 1
+
+    if unusedintf == itf_count:
+        exit('Error: no interfaces with defined mac address')
+    elif unusedintf > 0:
+        print '# Note %s interfaces without mac address not included' % (unusedintf)
+
+    # Finally add the host to the machine
+
+    if opts.sandbox:
+        aqdesttype = 'sandbox'
+        aqdestval = opts.sandbox
+    elif opts.domain:
+        aqdesttype = 'domain'
+        aqdestval = opts.domain
+
+    cmds.append(
+        'add_host --hostname %s --machine %s%d --archetype %s --ip %s --personality %s --%s %s --osname %s --osversion %s' % (
+            opts.hostname, MACHINE_PREFIX, hst['id'], opts.archetype,          \
+            hst['primary_ip']['address'].split('/')[0],                        \
+            opts.personality,                 \
+            aqdesttype, aqdestval, opts.osname, opts.osvers))
+
+    for cmd in cmds:
+        if opts.dryrun:
+            print 'aq ' + cmd
+        else:
+            retval = subprocess.call([AQ_PATH]+cmd.split(' '))
+            if retval is not 0:
+                exit('Error: commmand %s %s exited with error code %d' % (AQ_PATH, cmd, retval))
+
+if __name__ == "__main__":
+    PARSER = argparse.ArgumentParser()
+
+    AQDEST = PARSER.add_mutually_exclusive_group(required=True)
+    AQDEST.add_argument(
+        "--sandbox", "-s", \
+        help="Name of the sandbox in user/sandbox format to add the copied host to")
+    AQDEST.add_argument(
+        "--domain", "-d", \
+        help="Name of the domain to add the copied host to")
+    PARSER.add_argument(
+        "--hostname", "-n", required=True, \
+        help="Fully qualified domain name of host to copy from Netbox.")
+    PARSER.add_argument(
+        "--rack", "-r", required=True, \
+        help="Virtual rack for virtual machines")
+    PARSER.add_argument(
+        "--model", "-m", required=True, \
+        help="Model for virtual machine")
+    PARSER.add_argument(
+        "--personality", "-p", required=True, \
+        help="Personality for virtual machine")
+    PARSER.add_argument(
+        "--archetype", "-a", default=DEFAULT_ARCHETYPE,  \
+        help="Destination aquilon archetype for the host to be copied. Default: " + DEFAULT_ARCHETYPE)
+    PARSER.add_argument(
+        "--osname", default=DEFAULT_OSNAME, \
+        help="Name of the Operating system on the host. Default: " + DEFAULT_OSNAME)
+    PARSER.add_argument(
+        "--osvers", default=DEFAULT_OSVERSION, \
+        help="Version of the Operating system on the host. Default: " + DEFAULT_OSVERSION)
+    PARSER.add_argument(
+        "--dryrun", action='store_false', \
+        help="Do not do anything to aquilon, instead print what would be done (currently true if not specified)")
+    OPTS, ARGS = PARSER.parse_known_args()
+
+    copy(OPTS)
