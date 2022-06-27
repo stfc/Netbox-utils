@@ -3,6 +3,7 @@
 """ netbox2aquilon - script to extract data out of netbox and use it to create aquilon entities."""
 
 import argparse
+import logging
 import subprocess
 import sys
 
@@ -38,30 +39,36 @@ def netbox_copy(opts):
     # get device from NetBox based on their MagDB system ID
     hst = NETBOX.dcim.devices.get(cf_magdb_system_id=opts.magdb_id)
     if hst is None:
-        return "Error - Device not found in NetBox"
+        logging.error("Device not found in NetBox")
+        sys.exit(1)
 
     # check if device has a primary ip
     if hst.primary_ip is None:
-        return "Error - No primary IP defined for host"
+        logging.error("No primary IP defined for host")
+        sys.exit(1)
+
     # check if device has a tenant
     if hst.tenant is None:
-        return "Error - No tenant defined for host"
+        logging.error("No tenant defined for host")
+        sys.exit(1)
 
     # Preserve MagDB style machine naming for migrated hosts
     machine_name = 'netbox-%d' % hst.id
     if 'magdb_system_id' in hst.custom_fields:
         machine_name = 'system%d' % hst.custom_fields['magdb_system_id']
 
-
     # check if host is in rack - query netbox for rack
     rack_id = hst.rack.id
     rack = NETBOX.dcim.racks.get(rack_id)
+
     if rack is None:
-        return "Error - host not in rack?"
+        logging.error("host not in rack?")
+        sys.exit(1)
 
     # check facility_id is present
     if rack.facility_id is None:
-        return "Error - no facility ID found for rack"
+        logging.error("no facility ID found for rack")
+        sys.exit(1)
 
     cmds.append("add_machine --machine %s --model %s --rack %s-%s" % (
         machine_name,
@@ -76,7 +83,8 @@ def netbox_copy(opts):
     filter_interfaces = NETBOX.dcim.interfaces.filter(device=hst.name)
 
     if len(filter_interfaces) == 0:
-        return "Error - No interfaces found"
+        logging.error("No interfaces found")
+        sys.exit(1)
 
     interfaces = []
     for i in filter_interfaces:
@@ -124,10 +132,13 @@ def netbox_copy(opts):
         else:
             retval = subprocess.call([AQ_PATH]+cmd.split(' '))
             if retval != 0:
-                sys.exit('Error: commmand %s %s exited with error code %d' % (AQ_PATH, cmd, retval))
+                logging.error('Commmand %s %s exited with error code %d', AQ_PATH, cmd, retval)
+                sys.exit(1)
 
 
 if __name__ == "__main__":
+    logging.basicConfig(format='%(levelname)s: %(message)s')
+
     PARSER = argparse.ArgumentParser()
 
     AQDEST = PARSER.add_mutually_exclusive_group(required=True)
@@ -165,4 +176,4 @@ if __name__ == "__main__":
     )
     OPTS, ARGS = PARSER.parse_known_args()
 
-    print(netbox_copy(OPTS))
+    netbox_copy(OPTS)
