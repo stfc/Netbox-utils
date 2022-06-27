@@ -49,7 +49,7 @@ def netbox_copy(opts):
         return "Error - No tenant defined for host"
 
     # check if host is in rack - query netbox for rack
-    rack_id = hst['rack']['id']
+    rack_id = hst.rack.id
     rack = NETBOX.dcim.racks.get(rack_id)
     if rack is None:
         return "Error - host not in rack?"
@@ -60,16 +60,16 @@ def netbox_copy(opts):
 
     cmds.append("add_machine --machine %s%d --model %s --rack %s-%s" % (
         MACHINE_PREFIX,
-        hst['id'],
-        hst['device_type']['slug'],
-        hst['site']['slug'],
-        rack['facility_id'],
+        hst.id,
+        hst.device_type.slug,
+        hst.site.facility.lower(),
+        rack.facility_id,
     ))
 
     # next step is to add interfaces to the machine in Aquilon
     # We need to use 'filter' to retrieve the interface id for all interfaces
     # This will assume that the device name IS UNIQUE
-    filter_interfaces = NETBOX.dcim.interfaces.filter(device=hst['name'])
+    filter_interfaces = NETBOX.dcim.interfaces.filter(device=hst.name)
 
     if len(filter_interfaces) == 0:
         return "Error - No interfaces found"
@@ -81,9 +81,9 @@ def netbox_copy(opts):
     unusedintf = 0
     for intf in interfaces:
         interface = NETBOX.dcim.interfaces.get(intf)
-        if interfaces[interface]['mac_address']:
+        if interface.mac_address:
             cmds.append('add_interface --machine %s%d --mac %s --interface %s' % (
-                MACHINE_PREFIX, hst['id'], interface['mac_address'], interface['name']))
+                MACHINE_PREFIX, hst.id, interface.mac_address, interface.name))
         else:
             unusedintf += 1
 
@@ -99,13 +99,13 @@ def netbox_copy(opts):
 
     # Finally add the host to the machine
     cmds.append('add_host --hostname %s --machine %s%d --archetype %s --ip %s --personality %s-%s --%s %s --osname %s --osversion %s' % (
-        opts.hostname,
+        hst.primary_ip.dns_name,
         MACHINE_PREFIX,
-        hst['id'],
+        hst.id,
         opts.archetype,
-        hst['primary_ip']['address'].split('/')[0],
-        hst['device_role']['slug'],
-        hst['tenant']['slug'],
+        hst.primary_ip.address.split('/')[0],
+        hst.device_role.slug,
+        hst.tenant.slug,
         aqdesttype,
         aqdestval,
         opts.osname,
