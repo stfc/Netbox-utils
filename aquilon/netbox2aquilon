@@ -179,7 +179,7 @@ if __name__ == "__main__":
         help="Version of the Operating system on the host. Default: " + DEFAULT_OSVERSION,
     )
     PARSER.add_argument(
-        "--dryrun", action='store_false',
+        "--dryrun", action='store_true',
         help="Do not do anything to aquilon, instead print what would be done (currently true if not specified)",
     )
     OPTS, ARGS = PARSER.parse_known_args()
