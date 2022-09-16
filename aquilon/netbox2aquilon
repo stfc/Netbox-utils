@@ -56,6 +56,34 @@ def _get_device_by_magdb_id(magdb_id):
     return device
 
 
+def _get_device_by_name(name):
+    device = NETBOX.dcim.devices.get(name=name)
+
+    if device is None:
+        logging.error("Device not found in NetBox")
+        sys.exit(1)
+
+    logging.debug("Got device %s for name %s", device, name)
+    return device
+
+
+def _get_device_by_hostname(hostname):
+    ip_address = NETBOX.ipam.ip_addresses.get(dns_name=hostname)
+    if ip_address is None:
+        logging.error("Hostname not found in NetBox")
+        sys.exit(1)
+
+    logging.debug("Got IP %s for hostname %s", ip_address, hostname)
+    device = ip_address.assigned_object.device
+
+    if device is None:
+        logging.error("Device not found in NetBox")
+        sys.exit(1)
+
+    logging.debug("Got device %s for hostname %s", device, hostname)
+    return device
+
+
 def netbox_copy(opts):
     """
     Queries NetBox for a device based on it's MagDB system ID
@@ -68,7 +96,15 @@ def netbox_copy(opts):
     # Should MagDB style naming be preserved for this host?
     preserve_magdb_naming = False
 
-    device = _get_device_by_magdb_id(opts.magdb_id)
+    if opts.magdb_id:
+        device = _get_device_by_magdb_id(opts.magdb_id)
+    elif opts.netboxname:
+        device = _get_device_by_name(opts.netboxname)
+    elif opts.hostname:
+        device = _get_device_by_hostname(opts.hostname)
+    else:
+        logging.error("No device specification provided")
+        sys.exit(2)
 
     # check if device has a primary ip
     if device.primary_ip is None:
@@ -185,17 +221,24 @@ if __name__ == "__main__":
         "--domain", "-d",
         help="Name of the domain to add the copied host to",
     )
-    PARSER.add_argument(
-        "--hostname", "-n", required=True,
+
+    HOSTID = PARSER.add_mutually_exclusive_group(required=True)
+    HOSTID.add_argument(
+        "--hostname",
         help="Fully qualified domain name of host to copy from Netbox.",
     )
+    HOSTID.add_argument(
+        "--netboxname", "-n",
+        help="Name of device to copy from Netbox.",
+    )
+    HOSTID.add_argument(
+        "--magdb_id", "-m",
+        help="MagDB system ID of host to copy from Netbox.",
+    )
+
     PARSER.add_argument(
         "--archetype", "-a", default=CONFIG['aquilon']['archetype'],
         help="Destination aquilon archetype for the host to be copied. Default: " + CONFIG['aquilon']['archetype'],
-    )
-    PARSER.add_argument(
-        "--magdb_id", "-m", required=True,
-        help="MagDB system ID of host to copy from Netbox.",
     )
     PARSER.add_argument(
         "--osname", default=CONFIG['aquilon']['osname'],
