@@ -101,6 +101,30 @@ def _get_rack_from_device(device):
     return rack
 
 
+def _get_interfaces_from_device(device):
+    # next step is to add interfaces to the machine in Aquilon
+    # We need to use 'filter' to retrieve the interface id for all interfaces
+    # This will assume that the device name IS UNIQUE
+    filter_interfaces = NETBOX.dcim.interfaces.filter(device=device.name)
+
+    if len(filter_interfaces) == 0:
+        logging.error("No interfaces found")
+        sys.exit(1)
+
+    interfaces = []
+    unusedintf = 0
+    for interface in filter_interfaces:
+        if interface.mac_address:
+            interfaces.append(interface)
+        else:
+            unusedintf += 1
+
+    if unusedintf:
+        logging.warning("%s interfaces without mac address were not included", unusedintf)
+
+    return interfaces
+
+
 def _get_current_sandbox():
     sandbox = None
     git_rev_parse = subprocess.run(
@@ -171,33 +195,14 @@ def netbox_copy(opts):
         rack_name,
     ))
 
-    # next step is to add interfaces to the machine in Aquilon
-    # We need to use 'filter' to retrieve the interface id for all interfaces
-    # This will assume that the device name IS UNIQUE
-    filter_interfaces = NETBOX.dcim.interfaces.filter(device=device.name)
+    interfaces = _get_interfaces_from_device(device)
+    for interface in interfaces:
+        cmds.append('add_interface --machine %s --mac %s --interface %s' % (
+            machine_name,
+            interface.mac_address,
+            interface.name,
+        ))
 
-    if len(filter_interfaces) == 0:
-        logging.error("No interfaces found")
-        sys.exit(1)
-
-    interfaces = []
-    for i in filter_interfaces:
-        interfaces.append(i.id)
-
-    unusedintf = 0
-    for intf in interfaces:
-        interface = NETBOX.dcim.interfaces.get(intf)
-        if interface.mac_address:
-            cmds.append('add_interface --machine %s --mac %s --interface %s' % (
-                machine_name,
-                interface.mac_address,
-                interface.name,
-            ))
-        else:
-            unusedintf += 1
-
-    if unusedintf > 0:
-        print("# Note %s interfaces without mac address not included" % (unusedintf))
 
     if opts.sandbox:
         aqdesttype = 'sandbox'
