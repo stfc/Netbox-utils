@@ -57,29 +57,29 @@ def netbox_copy(opts):
     preserve_magdb_naming = False
 
     # get device from NetBox based on their MagDB system ID
-    hst = NETBOX.dcim.devices.get(cf_magdb_system_id=opts.magdb_id)
-    if hst is None:
+    device = NETBOX.dcim.devices.get(cf_magdb_system_id=opts.magdb_id)
+    if device is None:
         logging.error("Device not found in NetBox")
         sys.exit(1)
 
     # check if device has a primary ip
-    if hst.primary_ip is None:
+    if device.primary_ip is None:
         logging.error("No primary IP defined for host")
         sys.exit(1)
 
     # check if device has a tenant
-    if hst.tenant is None:
+    if device.tenant is None:
         logging.error("No tenant defined for host")
         sys.exit(1)
 
     # Preserve MagDB style machine naming for migrated hosts
-    machine_name = 'netbox-%d' % hst.id
-    if 'magdb_system_id' in hst.custom_fields:
+    machine_name = 'netbox-%d' % device.id
+    if device.custom_fields['magdb_system_id']:
         preserve_magdb_naming = True
-        machine_name = 'system%d' % hst.custom_fields['magdb_system_id']
+        machine_name = 'system%d' % device.custom_fields['magdb_system_id']
 
     # check if host is in rack - query netbox for rack
-    rack_id = hst.rack.id
+    rack_id = device.rack.id
     rack = NETBOX.dcim.racks.get(rack_id)
 
     if rack is None:
@@ -92,22 +92,22 @@ def netbox_copy(opts):
         sys.exit(1)
 
     # Default naming convention for new racks
-    rack_name = '%s-%s' % (hst.site.facility.lower(), rack.facility_id)
+    rack_name = '%s-%s' % (device.site.facility.lower(), rack.facility_id)
 
     # Preserve magdb2aquilon style names for migrated racks
     if preserve_magdb_naming:
-        rack_name = '%srack%s' % (hst.site.facility.lower(), rack.facility_id)
+        rack_name = '%srack%s' % (device.site.facility.lower(), rack.facility_id)
 
     cmds.append("add_machine --machine %s --model %s --rack %s" % (
         machine_name,
-        hst.device_type.slug,
+        device.device_type.slug,
         rack_name,
     ))
 
     # next step is to add interfaces to the machine in Aquilon
     # We need to use 'filter' to retrieve the interface id for all interfaces
     # This will assume that the device name IS UNIQUE
-    filter_interfaces = NETBOX.dcim.interfaces.filter(device=hst.name)
+    filter_interfaces = NETBOX.dcim.interfaces.filter(device=device.name)
 
     if len(filter_interfaces) == 0:
         logging.error("No interfaces found")
@@ -141,12 +141,12 @@ def netbox_copy(opts):
 
     # Finally add the host to the machine
     cmds.append('add_host --hostname %s --machine %s --archetype %s --ip %s --personality %s-%s --%s %s --osname %s --osversion %s' % (
-        hst.primary_ip.dns_name,
+        device.primary_ip.dns_name,
         machine_name,
         opts.archetype,
-        hst.primary_ip.address.split('/')[0],
-        hst.device_role.slug,
-        hst.tenant.slug,
+        device.primary_ip.address.split('/')[0],
+        device.device_role.slug,
+        device.tenant.slug,
         aqdesttype,
         aqdestval,
         opts.osname,
