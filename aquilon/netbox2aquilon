@@ -24,6 +24,7 @@ CONFIG['aquilon'] = {
     'osname': 'rocky',
     'osversion': '8x-x86_64',
     'cli_path': '/opt/aquilon/bin/aq.py',
+    'domain': 'staging',
 }
 CONFIG.read([
     '/var/quattor/etc/' + os.path.basename(__file__) + '.cfg',
@@ -82,6 +83,22 @@ def _get_device_by_hostname(hostname):
 
     logging.debug("Got device %s for hostname %s", device, hostname)
     return device
+
+
+def _get_current_sandbox():
+    sandbox = None
+    git_rev_parse = subprocess.run(
+        ['git', 'rev-parse', '--show-toplevel'],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if git_rev_parse.returncode == 0:
+        sandbox = b'/'.join([
+            os.path.basename(os.path.dirname(git_rev_parse.stdout)),
+            os.path.basename(git_rev_parse.stdout.strip()),
+        ]).decode('utf-8')
+    return sandbox
 
 
 def netbox_copy(opts):
@@ -212,7 +229,7 @@ if __name__ == "__main__":
 
     PARSER = argparse.ArgumentParser()
 
-    AQDEST = PARSER.add_mutually_exclusive_group(required=True)
+    AQDEST = PARSER.add_mutually_exclusive_group()
     AQDEST.add_argument(
         "--sandbox", "-s",
         help="Name of the sandbox in user/sandbox format to add the copied host to",
@@ -260,5 +277,12 @@ if __name__ == "__main__":
 
     if OPTS.debug:
         logging.getLogger().setLevel(logging.DEBUG)
+
+    # If domain or sandbox have not been provided, then see if the command is being run from sandbox,
+    # if not, then use the domain configured as default.
+    if not OPTS.domain and not OPTS.sandbox:
+        OPTS.sandbox = _get_current_sandbox()
+        if not OPTS.sandbox:
+            OPTS.domain = CONFIG['aquilon']['domain']
 
     netbox_copy(OPTS)
