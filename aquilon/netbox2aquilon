@@ -85,6 +85,30 @@ def _get_device_by_hostname(hostname):
     return device
 
 
+def _get_device(opts):
+    if opts.magdb_id:
+        device = _get_device_by_magdb_id(opts.magdb_id)
+    elif opts.netboxname:
+        device = _get_device_by_name(opts.netboxname)
+    elif opts.hostname:
+        device = _get_device_by_hostname(opts.hostname)
+    else:
+        logging.error("No device specification provided")
+        sys.exit(2)
+
+    # check if device has a primary ip
+    if device.primary_ip is None:
+        logging.error("No primary IP defined for host")
+        sys.exit(1)
+
+    # check if device has a tenant
+    if device.tenant is None:
+        logging.error("No tenant defined for host")
+        sys.exit(1)
+
+    return device
+
+
 def _get_rack_from_device(device):
     # check if host is in rack - query netbox for rack
     rack = NETBOX.dcim.racks.get(device.rack.id)
@@ -153,25 +177,7 @@ def netbox_copy(opts):
     # Should MagDB style naming be preserved for this host?
     preserve_magdb_naming = False
 
-    if opts.magdb_id:
-        device = _get_device_by_magdb_id(opts.magdb_id)
-    elif opts.netboxname:
-        device = _get_device_by_name(opts.netboxname)
-    elif opts.hostname:
-        device = _get_device_by_hostname(opts.hostname)
-    else:
-        logging.error("No device specification provided")
-        sys.exit(2)
-
-    # check if device has a primary ip
-    if device.primary_ip is None:
-        logging.error("No primary IP defined for host")
-        sys.exit(1)
-
-    # check if device has a tenant
-    if device.tenant is None:
-        logging.error("No tenant defined for host")
-        sys.exit(1)
+    device = _get_device(opts)
 
     # Preserve MagDB style machine naming for migrated hosts
     machine_name = 'netbox-%d' % device.id
