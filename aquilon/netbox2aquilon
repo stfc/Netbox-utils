@@ -3,7 +3,12 @@
 """ netbox2aquilon - script to extract data out of netbox and use it to create
 aquilon entities."""
 
-import argparse, json, requests, subprocess
+import argparse
+import json
+import subprocess
+import sys
+
+import requests
 
 NETBOX_API = 'https://netbox.esc.rl.ac.uk/api/'
 DEFAULT_ARCHETYPE = 'rig'
@@ -11,6 +16,7 @@ DEFAULT_OSNAME = 'rhel'
 DEFAULT_OSVERSION = '7x-x86_64'
 MACHINE_PREFIX = 'netbox-'
 AQ_PATH = '/opt/aquilon/bin/aq.py'
+
 
 def netbox_query(path, parameters, expected_number):
     """Queries netbox and returns received data
@@ -25,27 +31,34 @@ def netbox_query(path, parameters, expected_number):
     responses
     """
 
-    request = requests.get(NETBOX_API + path, params=parameters,verify="/etc/grid-security/certificates/UKeScienceRoot-2007.pem")
+    request = requests.get(
+        NETBOX_API + path,
+        params=parameters,
+        verify="/etc/grid-security/certificates/UKeScienceRoot-2007.pem",
+    )
     jsonoutput = json.loads(request.text)
 
     # This should only be if you are not searching, but directly accessing
     # In which case there is no count value and the next if will exit
     # so return the output before that happens
-    if parameters == None and expected_number == None:
+    if parameters is None and expected_number is None:
         return jsonoutput
 
     if 'count' not in jsonoutput:
-        exit('Error: incorrectly formed response from netbox - no count value')
+        sys.exit('Error: incorrectly formed response from netbox - no count value')
 
     if expected_number:
         if jsonoutput['count'] != expected_number:
-            exit('Unexpected number of responses from netbox: %s, expected %s' \
-                % (jsonoutput['count'], expected_number))
+            sys.exit('Unexpected number of responses from netbox: %s, expected %s' % (
+                jsonoutput['count'],
+                expected_number,
+            ))
 
         if expected_number == 1:
             return jsonoutput['results'][0]
 
     return jsonoutput['count'], jsonoutput['results']
+
 
 def copy(opts):
     """Handles the copying of info to aquilon
@@ -66,29 +79,32 @@ def copy(opts):
 
     # Sanity check host info
     if not hst['primary_ip']:
-        exit('Error - no primary ip defined for host')
+        sys.exit('Error - no primary ip defined for host')
     if not hst['tenant']:
-        exit('Error - no tenant defined for host')
+        sys.exit('Error - no tenant defined for host')
 
     if hst['rack']:
         rck = netbox_query('dcim/racks/%s' % hst['rack']['id'], None, None)
     else:
-        exit('Error: Host not in rack?')
+        sys.exit('Error: Host not in rack?')
 
     # Sanity check rack info
     if not rck['facility_id']:
-        exit('Error - no facility id for rack')
-    if type(rck['facility_id']) is str:
-        exit('Error - facility id is not numeric')
+        sys.exit('Error - no facility id for rack')
+    if isinstance(rck['facility_id'], str):
+        sys.exit('Error - facility id is not numeric')
 
-    cmds.append("add_machine --machine %s%d --model %s --rack %s-%s" \
-        % (MACHINE_PREFIX, hst['id'], hst['device_type']['slug'], \
-        hst['site']['slug'], rck['facility_id']))
+    cmds.append("add_machine --machine %s%d --model %s --rack %s-%s" % (
+        MACHINE_PREFIX,
+        hst['id'],
+        hst['device_type']['slug'],
+        hst['site']['slug'],
+        rck['facility_id'],
+    ))
 
     # Now add interfaces to the machine
 
-    itf_count, itf = netbox_query('dcim/interfaces/', \
-        {'device': opts.hostname}, None)
+    itf_count, itf = netbox_query('dcim/interfaces/', {'device': opts.hostname}, None)
 
     unusedintf = 0
     for i in range(0, itf_count):
@@ -99,11 +115,9 @@ def copy(opts):
             unusedintf = unusedintf + 1
 
     if unusedintf == itf_count:
-        exit('Error: no interfaces with defined mac address')
+        sys.exit('Error: no interfaces with defined mac address')
     elif unusedintf > 0:
-        print '# Note %s interfaces without mac address not included' % (unusedintf)
-
-    # Finally add the host to the machine
+        print('# Note %s interfaces without mac address not included' % (unusedintf))
 
     if opts.sandbox:
         aqdesttype = 'sandbox'
@@ -112,46 +126,62 @@ def copy(opts):
         aqdesttype = 'domain'
         aqdestval = opts.domain
 
-    cmds.append(
-        'add_host --hostname %s --machine %s%d --archetype %s --ip %s --personality %s-%s --%s %s --osname %s --osversion %s' % (
-            opts.hostname, MACHINE_PREFIX, hst['id'], opts.archetype,          \
-            hst['primary_ip']['address'].split('/')[0],                        \
-            hst['device_role']['slug'], hst['tenant']['slug'],                 \
-            aqdesttype, aqdestval, opts.osname, opts.osvers))
+    # Finally add the host to the machine
+    cmds.append('add_host --hostname %s --machine %s%d --archetype %s --ip %s --personality %s-%s --%s %s --osname %s --osversion %s' % (
+        opts.hostname,
+        MACHINE_PREFIX,
+        hst['id'],
+        opts.archetype,
+        hst['primary_ip']['address'].split('/')[0],
+        hst['device_role']['slug'],
+        hst['tenant']['slug'],
+        aqdesttype,
+        aqdestval,
+        opts.osname,
+        opts.osvers,
+    ))
 
     for cmd in cmds:
         if opts.dryrun:
-            print 'aq ' + cmd
+            print('aq ' + cmd)
         else:
             retval = subprocess.call([AQ_PATH]+cmd.split(' '))
-            if retval is not 0:
-                exit('Error: commmand %s %s exited with error code %d' % (AQ_PATH, cmd, retval))
+            if retval != 0:
+                sys.exit('Error: commmand %s %s exited with error code %d' % (AQ_PATH, cmd, retval))
+
 
 if __name__ == "__main__":
     PARSER = argparse.ArgumentParser()
 
     AQDEST = PARSER.add_mutually_exclusive_group(required=True)
     AQDEST.add_argument(
-        "--sandbox", "-s", \
-        help="Name of the sandbox in user/sandbox format to add the copied host to")
+        "--sandbox", "-s",
+        help="Name of the sandbox in user/sandbox format to add the copied host to",
+    )
     AQDEST.add_argument(
-        "--domain", "-d", \
-        help="Name of the domain to add the copied host to")
+        "--domain", "-d",
+        help="Name of the domain to add the copied host to",
+    )
     PARSER.add_argument(
-        "--hostname", "-n", required=True, \
-        help="Fully qualified domain name of host to copy from Netbox.")
+        "--hostname", "-n", required=True,
+        help="Fully qualified domain name of host to copy from Netbox.",
+    )
     PARSER.add_argument(
-        "--archetype", "-a", default=DEFAULT_ARCHETYPE,  \
-        help="Destination aquilon archetype for the host to be copied. Default: " + DEFAULT_ARCHETYPE)
+        "--archetype", "-a", default=DEFAULT_ARCHETYPE,
+        help="Destination aquilon archetype for the host to be copied. Default: " + DEFAULT_ARCHETYPE,
+    )
     PARSER.add_argument(
-        "--osname", default=DEFAULT_OSNAME, \
-        help="Name of the Operating system on the host. Default: " + DEFAULT_OSNAME)
+        "--osname", default=DEFAULT_OSNAME,
+        help="Name of the Operating system on the host. Default: " + DEFAULT_OSNAME,
+    )
     PARSER.add_argument(
-        "--osvers", default=DEFAULT_OSVERSION, \
-        help="Version of the Operating system on the host. Default: " + DEFAULT_OSVERSION)
+        "--osvers", default=DEFAULT_OSVERSION,
+        help="Version of the Operating system on the host. Default: " + DEFAULT_OSVERSION,
+    )
     PARSER.add_argument(
-        "--dryrun", action='store_false', \
-        help="Do not do anything to aquilon, instead print what would be done (currently true if not specified)")
+        "--dryrun", action='store_true',
+        help="Do not do anything to aquilon, instead print what would be done (currently true if not specified)",
+    )
     OPTS, ARGS = PARSER.parse_known_args()
 
     copy(OPTS)
