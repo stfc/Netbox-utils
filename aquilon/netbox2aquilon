@@ -3,27 +3,44 @@
 """ netbox2aquilon - script to extract data out of netbox and use it to create aquilon entities."""
 
 import argparse
+import configparser
 import logging
+import os.path
 import subprocess
 import sys
 
 import requests
 import pynetbox as nb
 
-NETBOX_API = 'https://netbox.example.org/'
-NETBOX_CERT_PATH = 'NETBOX_CERTIFICATE_PATH'  # certificate for netbox
-NETBOX_TOKEN = 'TOKEN'
 
-DEFAULT_ARCHETYPE = 'ral-tier1'  # change archetype if a cloud rack or system?
-DEFAULT_OSNAME = 'rhel'
-DEFAULT_OSVERSION = '7x-x86_64'
-AQ_PATH = '/opt/aquilon/bin/aq.py'
+CONFIG = configparser.ConfigParser()
+CONFIG['netbox'] = {
+    'url': 'https://netbox.example.org/',
+    'cert_path': '',
+    'token': 'TOKEN',
+}
+CONFIG['aquilon'] = {
+    'archetype': 'ral-tier1',
+    'osname': 'rocky',
+    'osversion': '8x-x86_64',
+    'cli_path': '/opt/aquilon/bin/aq.py',
+}
+CONFIG.read([
+    '/var/quattor/etc/' + os.path.basename(__file__) + '.cfg',
+    os.path.expanduser('~/.netbox2aquilon.cfg'),
+])
 
 
 # connect to NetBox and set up session
 NETBOX_SESSION = requests.Session()
-NETBOX_SESSION.verify = NETBOX_CERT_PATH
-NETBOX = nb.api(NETBOX_API, token=NETBOX_TOKEN)
+
+if CONFIG['netbox']['cert_path']:
+    if CONFIG['netbox']['cert_path'].lower() == 'false':
+        NETBOX_SESSION.verify = False
+    else:
+        NETBOX_SESSION.verify = CONFIG['netbox']['cert_path']
+
+NETBOX = nb.api(CONFIG['netbox']['url'], token=CONFIG['netbox']['token'])
 NETBOX.http_session = NETBOX_SESSION
 
 
@@ -130,9 +147,9 @@ def netbox_copy(opts):
         if opts.dryrun:
             print('aq ' + cmd)
         else:
-            retval = subprocess.call([AQ_PATH]+cmd.split(' '))
+            retval = subprocess.call([CONFIG['aquilon']['cli_path']]+cmd.split(' '))
             if retval != 0:
-                logging.error('Commmand %s %s exited with error code %d', AQ_PATH, cmd, retval)
+                logging.error('Commmand %s %s exited with error code %d', CONFIG['aquilon']['cli_path'], cmd, retval)
                 sys.exit(1)
 
 
@@ -155,20 +172,20 @@ if __name__ == "__main__":
         help="Fully qualified domain name of host to copy from Netbox.",
     )
     PARSER.add_argument(
-        "--archetype", "-a", default=DEFAULT_ARCHETYPE,
-        help="Destination aquilon archetype for the host to be copied. Default: " + DEFAULT_ARCHETYPE,
+        "--archetype", "-a", default=CONFIG['aquilon']['archetype'],
+        help="Destination aquilon archetype for the host to be copied. Default: " + CONFIG['aquilon']['archetype'],
     )
     PARSER.add_argument(
         "--magdb_id", "-m", required=True,
         help="MagDB system ID of host to copy from Netbox.",
     )
     PARSER.add_argument(
-        "--osname", default=DEFAULT_OSNAME,
-        help="Name of the Operating system on the host. Default: " + DEFAULT_OSNAME,
+        "--osname", default=CONFIG['aquilon']['osname'],
+        help="Name of the Operating system on the host. Default: " + CONFIG['aquilon']['osname'],
     )
     PARSER.add_argument(
-        "--osvers", default=DEFAULT_OSVERSION,
-        help="Version of the Operating system on the host. Default: " + DEFAULT_OSVERSION,
+        "--osvers", default=CONFIG['aquilon']['osversion'],
+        help="Version of the Operating system on the host. Default: " + CONFIG['aquilon']['osversion'],
     )
     PARSER.add_argument(
         "--dryrun", action='store_true',
