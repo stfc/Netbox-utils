@@ -44,6 +44,18 @@ NETBOX = nb.api(CONFIG['netbox']['url'], token=CONFIG['netbox']['token'])
 NETBOX.http_session = NETBOX_SESSION
 
 
+def _get_device_by_magdb_id(magdb_id):
+    # get device from NetBox based on their MagDB system ID
+    device = NETBOX.dcim.devices.get(cf_magdb_system_id=magdb_id)
+
+    if device is None:
+        logging.error("Device not found in NetBox")
+        sys.exit(1)
+
+    logging.debug("Got device %s for MagDB ID %s", device, magdb_id)
+    return device
+
+
 def netbox_copy(opts):
     """
     Queries NetBox for a device based on it's MagDB system ID
@@ -56,11 +68,7 @@ def netbox_copy(opts):
     # Should MagDB style naming be preserved for this host?
     preserve_magdb_naming = False
 
-    # get device from NetBox based on their MagDB system ID
-    device = NETBOX.dcim.devices.get(cf_magdb_system_id=opts.magdb_id)
-    if device is None:
-        logging.error("Device not found in NetBox")
-        sys.exit(1)
+    device = _get_device_by_magdb_id(opts.magdb_id)
 
     # check if device has a primary ip
     if device.primary_ip is None:
