@@ -85,6 +85,22 @@ def _get_device_by_hostname(hostname):
     return device
 
 
+def _get_rack_from_device(device):
+    # check if host is in rack - query netbox for rack
+    rack = NETBOX.dcim.racks.get(device.rack.id)
+
+    if rack is None:
+        logging.error("host not in rack?")
+        sys.exit(1)
+
+    # check facility_id is present
+    if rack.facility_id is None:
+        logging.error("no facility ID found for rack")
+        sys.exit(1)
+
+    return rack
+
+
 def _get_current_sandbox():
     sandbox = None
     git_rev_parse = subprocess.run(
@@ -140,17 +156,7 @@ def netbox_copy(opts):
         machine_name = 'system%d' % device.custom_fields['magdb_system_id']
 
     # check if host is in rack - query netbox for rack
-    rack_id = device.rack.id
-    rack = NETBOX.dcim.racks.get(rack_id)
-
-    if rack is None:
-        logging.error("host not in rack?")
-        sys.exit(1)
-
-    # check facility_id is present
-    if rack.facility_id is None:
-        logging.error("no facility ID found for rack")
-        sys.exit(1)
+    rack = _get_rack_from_device(device)
 
     # Default naming convention for new racks
     rack_name = '%s-%s' % (device.site.facility.lower(), rack.facility_id)
