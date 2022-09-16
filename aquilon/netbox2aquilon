@@ -165,6 +165,17 @@ def _get_current_sandbox():
     return sandbox
 
 
+def _call_aq(opts, cmds):
+    for cmd in cmds:
+        if opts.dryrun:
+            print('aq ' + cmd)
+        else:
+            retval = subprocess.call([CONFIG['aquilon']['cli_path']]+cmd.split(' '))
+            if retval != 0:
+                logging.error('Commmand %s %s exited with error code %d', CONFIG['aquilon']['cli_path'], cmd, retval)
+                sys.exit(1)
+
+
 def netbox_copy(opts):
     """
     Queries NetBox for a device based on it's MagDB system ID
@@ -231,14 +242,7 @@ def netbox_copy(opts):
         opts.osvers,
     ))
 
-    for cmd in cmds:
-        if opts.dryrun:
-            print('aq ' + cmd)
-        else:
-            retval = subprocess.call([CONFIG['aquilon']['cli_path']]+cmd.split(' '))
-            if retval != 0:
-                logging.error('Commmand %s %s exited with error code %d', CONFIG['aquilon']['cli_path'], cmd, retval)
-                sys.exit(1)
+    _call_aq(opts, cmds)
 
 
 if __name__ == "__main__":
