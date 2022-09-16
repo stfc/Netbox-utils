@@ -53,6 +53,9 @@ def netbox_copy(opts):
     """
     cmds = []
 
+    # Should MagDB style naming be preserved for this host?
+    preserve_magdb_naming = False
+
     # get device from NetBox based on their MagDB system ID
     hst = NETBOX.dcim.devices.get(cf_magdb_system_id=opts.magdb_id)
     if hst is None:
@@ -72,6 +75,7 @@ def netbox_copy(opts):
     # Preserve MagDB style machine naming for migrated hosts
     machine_name = 'netbox-%d' % hst.id
     if 'magdb_system_id' in hst.custom_fields:
+        preserve_magdb_naming = True
         machine_name = 'system%d' % hst.custom_fields['magdb_system_id']
 
     # check if host is in rack - query netbox for rack
@@ -87,11 +91,17 @@ def netbox_copy(opts):
         logging.error("no facility ID found for rack")
         sys.exit(1)
 
-    cmds.append("add_machine --machine %s --model %s --rack %s-%s" % (
+    # Default naming convention for new racks
+    rack_name = '%s-%s' % (hst.site.facility.lower(), rack.facility_id)
+
+    # Preserve magdb2aquilon style names for migrated racks
+    if preserve_magdb_naming:
+        rack_name = '%srack%s' % (hst.site.facility.lower(), rack.facility_id)
+
+    cmds.append("add_machine --machine %s --model %s --rack %s" % (
         machine_name,
         hst.device_type.slug,
-        hst.site.facility.lower(),
-        rack.facility_id,
+        rack_name,
     ))
 
     # next step is to add interfaces to the machine in Aquilon
