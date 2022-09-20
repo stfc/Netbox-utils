@@ -191,35 +191,27 @@ def netbox_copy(opts):
     device = _get_device(opts)
 
     # Preserve MagDB style machine naming for migrated hosts
-    machine_name = 'netbox-%d' % device.id
+    machine_name = f'netbox-{device.id}'
     if device.custom_fields['magdb_system_id']:
         preserve_magdb_naming = True
-        machine_name = 'system%d' % device.custom_fields['magdb_system_id']
+        machine_name = f'system{device.custom_fields["magdb_system_id"]}'
 
     # check if host is in rack - query netbox for rack
     rack = _get_rack_from_device(device)
 
-    # Default naming convention for new racks
-    rack_name = '%s-%s' % (device.site.facility.lower(), rack.facility_id)
-
-    # Preserve magdb2aquilon style names for migrated racks
+    rack_delimeter = '-'  # Default naming convention for new racks
     if preserve_magdb_naming:
-        rack_name = '%srack%s' % (device.site.facility.lower(), rack.facility_id)
+        rack_delimeter = 'rack'  # Preserve magdb2aquilon style names for migrated racks
 
-    cmds.append("add_machine --machine %s --model %s --rack %s" % (
-        machine_name,
-        device.device_type.slug,
-        rack_name,
-    ))
+    rack_name = rack_delimeter.join([device.site.facility.lower(), rack.facility_id])
+
+    cmds.append(f'add_machine --machine {machine_name} --model {device.device_type.slug} --rack {rack_name}')
 
     interfaces = _get_interfaces_from_device(device)
     for interface in interfaces:
-        cmds.append('add_interface --machine %s --mac %s --interface %s' % (
-            machine_name,
-            interface.mac_address,
-            interface.name,
-        ))
-
+        cmds.append(
+            f'add_interface --machine {machine_name} --mac {interface.mac_address} --interface {interface.name}'
+        )
 
     if opts.sandbox:
         aqdesttype = 'sandbox'
@@ -229,18 +221,17 @@ def netbox_copy(opts):
         aqdestval = opts.domain
 
     # Finally add the host to the machine
-    cmds.append('add_host --hostname %s --machine %s --archetype %s --ip %s --personality %s-%s --%s %s --osname %s --osversion %s' % (
-        device.primary_ip.dns_name,
-        machine_name,
-        opts.archetype,
-        device.primary_ip.address.split('/')[0],
-        device.device_role.slug,
-        device.tenant.slug,
-        aqdesttype,
-        aqdestval,
-        opts.osname,
-        opts.osvers,
-    ))
+    cmds.append(' '.join([
+        'add_host',
+        f'--hostname {device.primary_ip.dns_name}',
+        f'--machine {machine_name}',
+        f'--archetype {opts.archetype}',
+        f'--ip {device.primary_ip.address.split("/")[0]}',
+        f'--personality {device.device_role.slug}-{device.tenant.slug}',
+        f'--{aqdesttype} {aqdestval}',
+        f'--osname {opts.osname}',
+        f'--osversion {opts.osvers}',
+    ]))
 
     _call_aq(opts, cmds)
 
