@@ -10,7 +10,7 @@ import subprocess
 import sys
 
 import requests
-import pynetbox as nb
+import pynetbox
 
 
 CONFIG = configparser.ConfigParser()
@@ -41,7 +41,7 @@ if CONFIG['netbox']['cert_path']:
     else:
         NETBOX_SESSION.verify = CONFIG['netbox']['cert_path']
 
-NETBOX = nb.api(CONFIG['netbox']['url'], token=CONFIG['netbox']['token'])
+NETBOX = pynetbox.api(CONFIG['netbox']['url'], token=CONFIG['netbox']['token'])
 NETBOX.http_session = NETBOX_SESSION
 
 
