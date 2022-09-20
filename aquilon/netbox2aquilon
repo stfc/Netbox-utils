@@ -25,6 +25,8 @@ CONFIG['aquilon'] = {
     'osversion': '8x-x86_64',
     'cli_path': '/opt/aquilon/bin/aq.py',
     'domain': 'staging',
+    'cpuname': 'xeon_e5_2650v4',
+    'cpuspeed': '2200',
 }
 CONFIG.read([
     '/var/quattor/etc/' + os.path.basename(__file__) + '.cfg',
@@ -75,7 +77,19 @@ def _get_device_by_hostname(hostname):
         sys.exit(1)
 
     logging.debug("Got IP %s for hostname %s", ip_address, hostname)
-    device = ip_address.assigned_object.device
+
+    # The ip_address is assigned to an object, which is what we are after,
+    # unfortunately the property will return a pynetbox.core.response.Record object,
+    # so we need to use the id to obtain the "real" object and preserve the type.
+    if ip_address.assigned_object_type == 'dcim.interface':
+        logging.debug("IP %s is assigned to a physical interface")
+        device = NETBOX.dcim.devices.get(ip_address.assigned_object.device.id)
+    elif ip_address.assigned_object_type == 'virtualization.vminterface':
+        logging.debug("IP %s is assigned to a virtual machine interface")
+        device = NETBOX.virtualization.virtual_machines.get(ip_address.assigned_object.virtual_machine.id)
+    else:
+        logging.error("Unknown assigned_object_type %s for IP %s", ip_address.assigned_object_type, ip_address)
+        sys.exit(1)
 
     if device is None:
         logging.error("Device not found in NetBox")
@@ -129,7 +143,13 @@ def _get_interfaces_from_device(device):
     # next step is to add interfaces to the machine in Aquilon
     # We need to use 'filter' to retrieve the interface id for all interfaces
     # This will assume that the device name IS UNIQUE
-    filter_interfaces = NETBOX.dcim.interfaces.filter(device=device.name)
+    if isinstance(device, pynetbox.models.dcim.Devices):
+        filter_interfaces = NETBOX.dcim.interfaces.filter(device=device.name)
+    elif isinstance(device, pynetbox.models.virtualization.VirtualMachines):
+        filter_interfaces = NETBOX.virtualization.interfaces.filter(virtual_machine=device.name)
+    else:
+        logging.error('Unsupported device type for interfaces "%s"', type(device))
+        sys.exit(1)
 
     if len(filter_interfaces) == 0:
         logging.error("No interfaces found")
@@ -204,6 +224,40 @@ def _netbox_copy_device(device):
     return cmds
 
 
+def _netbox_copy_vm(virtual_machine):
+    cmds = []
+
+    # Should MagDB style naming be preserved for this host?
+    preserve_magdb_naming = False
+
+    # Preserve MagDB style machine naming for migrated hosts
+    machine_name = f'netbox-{virtual_machine.id}'
+    if virtual_machine.custom_fields['magdb_system_id']:
+        preserve_magdb_naming = True
+        machine_name = f'system{virtual_machine.custom_fields["magdb_system_id"]}'
+
+    cmds.append(' '.join([
+        'add_machine',
+        f'--machine {machine_name}',
+        f'--model {virtual_machine.device_type.slug}',  # Or opts.model?
+        f'--cluster {virtual_machine.cluster.name.lower()}',
+        f'--cpuname {CONFIG["aquilon"]["cpuname"]}',
+        f'--cpuspeed {CONFIG["aquilon"]["cpuspeed"]}',
+        f'--cpucount {virtual_machine.vcpus}',
+        f'--memory {virtual_machine.memory}',
+    ]))
+
+    cmds.append(f'add_disk --machine {machine_name} --disk sda --controller sata --size {virtual_machine.disk} --boot')
+
+    interfaces = _get_interfaces_from_device(virtual_machine)
+    for interface in interfaces:
+        cmds.append(
+            f'add_interface --machine {machine_name} --mac {interface.mac_address} --interface {interface.name}'
+        )
+
+    return cmds
+
+
 def _netbox_copy(opts):
     device = _get_device(opts)
 
@@ -216,6 +270,8 @@ def _netbox_copy(opts):
 
     if isinstance(device, pynetbox.models.dcim.Devices):
         cmds = _netbox_copy_device(device)
+    elif isinstance(device, pynetbox.models.virtualization.VirtualMachines):
+        cmds = _netbox_copy_vm(device)
     else:
         logging.error('Unsupported device type to copy "%s"', type(device))
         sys.exit(1)
