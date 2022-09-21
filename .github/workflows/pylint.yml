@@ -10,6 +10,8 @@ jobs:
         python-version: ["3.6.8"]
     steps:
     - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v3
       with:
@@ -19,6 +21,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install pylint
         pip install -r requirements.txt
-    - name: Analysing the code with pylint
+    - name: Analysing any changed code with pylint
       run: |
-        pylint --max-line-length=120 aquilon/netbox2aquilon*
+        git diff --name-only HEAD^ | grep '^aquilon/' | xargs -r pylint --max-line-length=120
