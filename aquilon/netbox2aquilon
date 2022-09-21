@@ -185,15 +185,11 @@ def netbox_copy(opts):
     """
     cmds = []
 
-    # Should MagDB style naming be preserved for this host?
-    preserve_magdb_naming = False
-
     device = _get_device(opts)
 
     # Preserve MagDB style machine naming for migrated hosts
     machine_name = f'netbox-{device.id}'
-    if device.custom_fields['magdb_system_id']:
-        preserve_magdb_naming = True
+    if 'magdb2netbox' in [t.slug for t in device.tags]:
         machine_name = f'system{device.custom_fields["magdb_system_id"]}'
 
     # check if host is in rack - query netbox for rack
