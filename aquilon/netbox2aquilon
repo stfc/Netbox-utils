@@ -200,7 +200,7 @@ def netbox_copy(opts):
     rack = _get_rack_from_device(device)
 
     rack_delimeter = '-'  # Default naming convention for new racks
-    if preserve_magdb_naming:
+    if 'magdb2netbox' in [t.slug for t in rack.tags]:
         rack_delimeter = 'rack'  # Preserve magdb2aquilon style names for migrated racks
 
     rack_name = rack_delimeter.join([device.site.facility.lower(), rack.facility_id])
