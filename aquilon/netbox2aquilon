@@ -238,7 +238,7 @@ def _netbox_copy_vm(virtual_machine):
     cmds.append(' '.join([
         'add_machine',
         f'--machine {virtual_machine.aq_machine_name}',
-        f'--model {virtual_machine.device_type.slug}',  # Or opts.model?
+        '--model virtual/vm-vmware',  # Or opts.model?
         f'--cluster {virtual_machine.cluster.name.lower()}',
         f'--cpuname {CONFIG["aquilon"]["cpuname"]}',
         f'--cpuspeed {CONFIG["aquilon"]["cpuspeed"]}',
