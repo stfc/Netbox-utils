@@ -284,10 +284,16 @@ def _netbox_copy(opts):
 
     if isinstance(device, pynetbox.models.dcim.Devices):
         cmds = _netbox_copy_device(device)
+        personality = f'{device.device_role.slug}-{device.tenant.slug}'
     elif isinstance(device, pynetbox.models.virtualization.VirtualMachines):
         cmds = _netbox_copy_vm(device)
+        personality = f'{device.role.slug}-{device.tenant.slug}'
     else:
         logging.error('Unsupported device type to copy "%s"', type(device))
+        sys.exit(1)
+
+    if not personality:
+        logging.error('Unable to determine personality of device "%s"', type(device))
         sys.exit(1)
 
     # Finally add the host to the machine
@@ -297,7 +303,7 @@ def _netbox_copy(opts):
         f'--machine {device.aq_machine_name}',
         f'--archetype {opts.archetype}',
         f'--ip {device.primary_ip.address.split("/")[0]}',
-        f'--personality {device.device_role.slug}-{device.tenant.slug}',
+        f'--personality {personality}',
         f'--{aqdesttype} {aqdestval}',
         f'--osname {opts.osname}',
         f'--osversion {opts.osvers}',
