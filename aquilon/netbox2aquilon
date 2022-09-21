@@ -9,6 +9,7 @@ import os.path
 import subprocess
 import sys
 
+import coloredlogs
 import requests
 import pynetbox
 
@@ -363,8 +364,10 @@ if __name__ == "__main__":
     )
     OPTS, ARGS = PARSER.parse_known_args()
 
+    coloredlogs.install(fmt='%(levelname)7s: %(message)s')
+
     if OPTS.debug:
-        logging.getLogger().setLevel(logging.DEBUG)
+        coloredlogs.set_level(logging.DEBUG)
 
     # If domain or sandbox have not been provided, then see if the command is being run from sandbox,
     # if not, then use the domain configured as default.

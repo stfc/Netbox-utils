@@ -1,2 +1,3 @@
 requests>=2.27.1
 pynetbox>=6.6.2
+coloredlogs>=7.3
