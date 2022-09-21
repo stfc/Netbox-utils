@@ -199,11 +199,6 @@ def _call_aq(opts, cmds):
 def _netbox_copy_device(device):
     cmds = []
 
-    # Preserve MagDB style machine naming for migrated hosts
-    machine_name = f'netbox-{device.id}'
-    if 'magdb2netbox' in [t.slug for t in device.tags]:
-        machine_name = f'system{device.custom_fields["magdb_system_id"]}'
-
     # check if host is in rack - query netbox for rack
     rack = _get_rack_from_device(device)
 
@@ -213,13 +208,21 @@ def _netbox_copy_device(device):
 
     rack_name = rack_delimeter.join([device.site.facility.lower(), rack.facility_id])
 
-    cmds.append(f'add_machine --machine {machine_name} --model {device.device_type.slug} --rack {rack_name}')
+    cmds.append(' '.join([
+        'add_machine',
+        f'--machine {device.aq_machine_name}',
+        f'--model {device.device_type.slug}',
+        f'--rack {rack_name}',
+    ]))
 
     interfaces = _get_interfaces_from_device(device)
     for interface in interfaces:
-        cmds.append(
-            f'add_interface --machine {machine_name} --mac {interface.mac_address} --interface {interface.name}'
-        )
+        cmds.append(' '.join([
+            'add_interface',
+            f'--machine {device.aq_machine_name}',
+            f'--mac {interface.mac_address}',
+            f'--interface {interface.name}',
+        ]))
 
     return cmds
 
@@ -227,18 +230,9 @@ def _netbox_copy_device(device):
 def _netbox_copy_vm(virtual_machine):
     cmds = []
 
-    # Should MagDB style naming be preserved for this host?
-    preserve_magdb_naming = False
-
-    # Preserve MagDB style machine naming for migrated hosts
-    machine_name = f'netbox-{virtual_machine.id}'
-    if virtual_machine.custom_fields['magdb_system_id']:
-        preserve_magdb_naming = True
-        machine_name = f'system{virtual_machine.custom_fields["magdb_system_id"]}'
-
     cmds.append(' '.join([
         'add_machine',
-        f'--machine {machine_name}',
+        f'--machine {virtual_machine.aq_machine_name}',
         f'--model {virtual_machine.device_type.slug}',  # Or opts.model?
         f'--cluster {virtual_machine.cluster.name.lower()}',
         f'--cpuname {CONFIG["aquilon"]["cpuname"]}',
@@ -247,13 +241,23 @@ def _netbox_copy_vm(virtual_machine):
         f'--memory {virtual_machine.memory}',
     ]))
 
-    cmds.append(f'add_disk --machine {machine_name} --disk sda --controller sata --size {virtual_machine.disk} --boot')
+    cmds.append(' '.join([
+        'add_disk',
+        f'--machine {virtual_machine.aq_machine_name}',
+        '--disk sda',
+        '--controller sata',
+        f'--size {virtual_machine.disk}',
+        '--boot',
+    ]))
 
     interfaces = _get_interfaces_from_device(virtual_machine)
     for interface in interfaces:
-        cmds.append(
-            f'add_interface --machine {machine_name} --mac {interface.mac_address} --interface {interface.name}'
-        )
+        cmds.append(' '.join([
+            'add_interface',
+            f'--machine {virtual_machine.aq_machine_name}',
+            f'--mac {interface.mac_address}',
+            f'--interface {interface.name}',
+        ]))
 
     return cmds
 
@@ -268,6 +272,12 @@ def _netbox_copy(opts):
         aqdesttype = 'domain'
         aqdestval = opts.domain
 
+    # Preserve MagDB style machine naming for migrated hosts
+    # Add a property to the object to store the desired aquilon machine name
+    device.aq_machine_name = f'netbox-{device.id}'
+    if 'magdb2netbox' in [t.slug for t in device.tags]:
+        device.aq_machine_name = f'system{device.custom_fields["magdb_system_id"]}'
+
     if isinstance(device, pynetbox.models.dcim.Devices):
         cmds = _netbox_copy_device(device)
     elif isinstance(device, pynetbox.models.virtualization.VirtualMachines):
@@ -280,7 +290,7 @@ def _netbox_copy(opts):
     cmds.append(' '.join([
         'add_host',
         f'--hostname {device.primary_ip.dns_name}',
-        f'--machine {machine_name}',
+        f'--machine {device.aq_machine_name}',
         f'--archetype {opts.archetype}',
         f'--ip {device.primary_ip.address.split("/")[0]}',
         f'--personality {device.device_role.slug}-{device.tenant.slug}',
