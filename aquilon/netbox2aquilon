@@ -230,6 +230,10 @@ def _netbox_copy_device(device):
 def _netbox_copy_vm(virtual_machine):
     cmds = []
 
+    if not virtual_machine.disk:
+        logging.error('Cannot continue, virtual disk size not present.')
+        sys.exit(1)
+
     cmds.append(' '.join([
         'add_machine',
         f'--machine {virtual_machine.aq_machine_name}',
