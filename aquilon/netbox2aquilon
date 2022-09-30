@@ -9,8 +9,9 @@ import os.path
 import subprocess
 import sys
 
+import coloredlogs
 import requests
-import pynetbox as nb
+import pynetbox
 
 
 CONFIG = configparser.ConfigParser()
@@ -25,6 +26,8 @@ CONFIG['aquilon'] = {
     'osversion': '8x-x86_64',
     'cli_path': '/opt/aquilon/bin/aq.py',
     'domain': 'staging',
+    'cpuname': 'xeon_e5_2650v4',
+    'cpuspeed': '2200',
 }
 CONFIG.read([
     '/var/quattor/etc/' + os.path.basename(__file__) + '.cfg',
@@ -41,7 +44,7 @@ if CONFIG['netbox']['cert_path']:
     else:
         NETBOX_SESSION.verify = CONFIG['netbox']['cert_path']
 
-NETBOX = nb.api(CONFIG['netbox']['url'], token=CONFIG['netbox']['token'])
+NETBOX = pynetbox.api(CONFIG['netbox']['url'], token=CONFIG['netbox']['token'])
 NETBOX.http_session = NETBOX_SESSION
 
 
@@ -75,7 +78,19 @@ def _get_device_by_hostname(hostname):
         sys.exit(1)
 
     logging.debug("Got IP %s for hostname %s", ip_address, hostname)
-    device = ip_address.assigned_object.device
+
+    # The ip_address is assigned to an object, which is what we are after,
+    # unfortunately the property will return a pynetbox.core.response.Record object,
+    # so we need to use the id to obtain the "real" object and preserve the type.
+    if ip_address.assigned_object_type == 'dcim.interface':
+        logging.debug("IP %s is assigned to a physical interface")
+        device = NETBOX.dcim.devices.get(ip_address.assigned_object.device.id)
+    elif ip_address.assigned_object_type == 'virtualization.vminterface':
+        logging.debug("IP %s is assigned to a virtual machine interface")
+        device = NETBOX.virtualization.virtual_machines.get(ip_address.assigned_object.virtual_machine.id)
+    else:
+        logging.error("Unknown assigned_object_type %s for IP %s", ip_address.assigned_object_type, ip_address)
+        sys.exit(1)
 
     if device is None:
         logging.error("Device not found in NetBox")
@@ -129,7 +144,13 @@ def _get_interfaces_from_device(device):
     # next step is to add interfaces to the machine in Aquilon
     # We need to use 'filter' to retrieve the interface id for all interfaces
     # This will assume that the device name IS UNIQUE
-    filter_interfaces = NETBOX.dcim.interfaces.filter(device=device.name)
+    if isinstance(device, pynetbox.models.dcim.Devices):
+        filter_interfaces = NETBOX.dcim.interfaces.filter(device=device.name)
+    elif isinstance(device, pynetbox.models.virtualization.VirtualMachines):
+        filter_interfaces = NETBOX.virtualization.interfaces.filter(virtual_machine=device.name)
+    else:
+        logging.error('Unsupported device type for interfaces "%s"', type(device))
+        sys.exit(1)
 
     if len(filter_interfaces) == 0:
         logging.error("No interfaces found")
@@ -176,21 +197,8 @@ def _call_aq(opts, cmds):
                 sys.exit(1)
 
 
-def netbox_copy(opts):
-    """
-    Queries NetBox for a device based on it's MagDB system ID
-
-    Takes 1 parameter:
-    opts - a dict of options configured from commandline parameters
-    """
+def _netbox_copy_device(device):
     cmds = []
-
-    device = _get_device(opts)
-
-    # Preserve MagDB style machine naming for migrated hosts
-    machine_name = f'netbox-{device.id}'
-    if 'magdb2netbox' in [t.slug for t in device.tags]:
-        machine_name = f'system{device.custom_fields["magdb_system_id"]}'
 
     # check if host is in rack - query netbox for rack
     rack = _get_rack_from_device(device)
@@ -201,13 +209,66 @@ def netbox_copy(opts):
 
     rack_name = rack_delimeter.join([device.site.facility.lower(), rack.facility_id])
 
-    cmds.append(f'add_machine --machine {machine_name} --model {device.device_type.slug} --rack {rack_name}')
+    cmds.append(' '.join([
+        'add_machine',
+        f'--machine {device.aq_machine_name}',
+        f'--model {device.device_type.slug}',
+        f'--rack {rack_name}',
+    ]))
 
     interfaces = _get_interfaces_from_device(device)
     for interface in interfaces:
-        cmds.append(
-            f'add_interface --machine {machine_name} --mac {interface.mac_address} --interface {interface.name}'
-        )
+        cmds.append(' '.join([
+            'add_interface',
+            f'--machine {device.aq_machine_name}',
+            f'--mac {interface.mac_address}',
+            f'--interface {interface.name}',
+        ]))
+
+    return cmds
+
+
+def _netbox_copy_vm(virtual_machine):
+    cmds = []
+
+    if not virtual_machine.disk:
+        logging.error('Cannot continue, virtual disk size not present.')
+        sys.exit(1)
+
+    cmds.append(' '.join([
+        'add_machine',
+        f'--machine {virtual_machine.aq_machine_name}',
+        '--model virtual/vm-vmware',  # Or opts.model?
+        f'--cluster {virtual_machine.cluster.name.lower()}',
+        f'--cpuname {CONFIG["aquilon"]["cpuname"]}',
+        f'--cpuspeed {CONFIG["aquilon"]["cpuspeed"]}',
+        f'--cpucount {virtual_machine.vcpus}',
+        f'--memory {virtual_machine.memory}',
+    ]))
+
+    cmds.append(' '.join([
+        'add_disk',
+        f'--machine {virtual_machine.aq_machine_name}',
+        '--disk sda',
+        '--controller sata',
+        f'--size {virtual_machine.disk}',
+        '--boot',
+    ]))
+
+    interfaces = _get_interfaces_from_device(virtual_machine)
+    for interface in interfaces:
+        cmds.append(' '.join([
+            'add_interface',
+            f'--machine {virtual_machine.aq_machine_name}',
+            f'--mac {interface.mac_address}',
+            f'--interface {interface.name}',
+        ]))
+
+    return cmds
+
+
+def _netbox_copy(opts):
+    device = _get_device(opts)
 
     if opts.sandbox:
         aqdesttype = 'sandbox'
@@ -216,14 +277,34 @@ def netbox_copy(opts):
         aqdesttype = 'domain'
         aqdestval = opts.domain
 
+    # Preserve MagDB style machine naming for migrated hosts
+    # Add a property to the object to store the desired aquilon machine name
+    device.aq_machine_name = f'netbox-{device.id}'
+    if 'magdb2netbox' in [t.slug for t in device.tags]:
+        device.aq_machine_name = f'system{device.custom_fields["magdb_system_id"]}'
+
+    if isinstance(device, pynetbox.models.dcim.Devices):
+        cmds = _netbox_copy_device(device)
+        personality = f'{device.device_role.slug}-{device.tenant.slug}'
+    elif isinstance(device, pynetbox.models.virtualization.VirtualMachines):
+        cmds = _netbox_copy_vm(device)
+        personality = f'{device.role.slug}-{device.tenant.slug}'
+    else:
+        logging.error('Unsupported device type to copy "%s"', type(device))
+        sys.exit(1)
+
+    if not personality:
+        logging.error('Unable to determine personality of device "%s"', type(device))
+        sys.exit(1)
+
     # Finally add the host to the machine
     cmds.append(' '.join([
         'add_host',
         f'--hostname {device.primary_ip.dns_name}',
-        f'--machine {machine_name}',
+        f'--machine {device.aq_machine_name}',
         f'--archetype {opts.archetype}',
         f'--ip {device.primary_ip.address.split("/")[0]}',
-        f'--personality {device.device_role.slug}-{device.tenant.slug}',
+        f'--personality {personality}',
         f'--{aqdesttype} {aqdestval}',
         f'--osname {opts.osname}',
         f'--osversion {opts.osvers}',
@@ -283,8 +364,10 @@ if __name__ == "__main__":
     )
     OPTS, ARGS = PARSER.parse_known_args()
 
+    coloredlogs.install(fmt='%(levelname)7s: %(message)s')
+
     if OPTS.debug:
-        logging.getLogger().setLevel(logging.DEBUG)
+        coloredlogs.set_level(logging.DEBUG)
 
     # If domain or sandbox have not been provided, then see if the command is being run from sandbox,
     # if not, then use the domain configured as default.
@@ -293,4 +376,4 @@ if __name__ == "__main__":
         if not OPTS.sandbox:
             OPTS.domain = CONFIG['aquilon']['domain']
 
-    netbox_copy(OPTS)
+    _netbox_copy(OPTS)
