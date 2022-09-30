@@ -1,123 +1,213 @@
-#!/bin/env python
+#!/usr/bin/env python3
 
-""" netbox2aquilon - script to extract data out of netbox and use it to create
-aquilon entities."""
+""" netbox2aquilon - script to extract data out of netbox and use it to create aquilon entities."""
 
 import argparse
-import json
+import configparser
+import logging
+import os.path
 import subprocess
 import sys
 
 import requests
-
-NETBOX_API = 'https://netbox.esc.rl.ac.uk/api/'
-DEFAULT_ARCHETYPE = 'rig'
-DEFAULT_OSNAME = 'rhel'
-DEFAULT_OSVERSION = '7x-x86_64'
-MACHINE_PREFIX = 'netbox-'
-AQ_PATH = '/opt/aquilon/bin/aq.py'
+import pynetbox as nb
 
 
-def netbox_query(path, parameters, expected_number):
-    """Queries netbox and returns received data
+CONFIG = configparser.ConfigParser()
+CONFIG['netbox'] = {
+    'url': 'https://netbox.example.org/',
+    'cert_path': '',
+    'token': 'TOKEN',
+}
+CONFIG['aquilon'] = {
+    'archetype': 'ral-tier1',
+    'osname': 'rocky',
+    'osversion': '8x-x86_64',
+    'cli_path': '/opt/aquilon/bin/aq.py',
+    'domain': 'staging',
+}
+CONFIG.read([
+    '/var/quattor/etc/' + os.path.basename(__file__) + '.cfg',
+    os.path.expanduser('~/.netbox2aquilon.cfg'),
+])
 
-    Takes 3 parameters:
-    path - appended to the netbox api url
-    parameters - dict of parameters to the request
-    expected_number - expected number of responses, probably most useful when
-    only expecting 1 response, can be None.
-    If expected_number is 1 then returns the netbox info for the device,
-    otherwise returns a tuple of the number of responses and the list of
-    responses
-    """
 
-    request = requests.get(
-        NETBOX_API + path,
-        params=parameters,
-        verify="/etc/grid-security/certificates/UKeScienceRoot-2007.pem",
+# connect to NetBox and set up session
+NETBOX_SESSION = requests.Session()
+
+if CONFIG['netbox']['cert_path']:
+    if CONFIG['netbox']['cert_path'].lower() == 'false':
+        NETBOX_SESSION.verify = False
+    else:
+        NETBOX_SESSION.verify = CONFIG['netbox']['cert_path']
+
+NETBOX = nb.api(CONFIG['netbox']['url'], token=CONFIG['netbox']['token'])
+NETBOX.http_session = NETBOX_SESSION
+
+
+def _get_device_by_magdb_id(magdb_id):
+    # get device from NetBox based on their MagDB system ID
+    device = NETBOX.dcim.devices.get(cf_magdb_system_id=magdb_id)
+
+    if device is None:
+        logging.error("Device not found in NetBox")
+        sys.exit(1)
+
+    logging.debug("Got device %s for MagDB ID %s", device, magdb_id)
+    return device
+
+
+def _get_device_by_name(name):
+    device = NETBOX.dcim.devices.get(name=name)
+
+    if device is None:
+        logging.error("Device not found in NetBox")
+        sys.exit(1)
+
+    logging.debug("Got device %s for name %s", device, name)
+    return device
+
+
+def _get_device_by_hostname(hostname):
+    ip_address = NETBOX.ipam.ip_addresses.get(dns_name=hostname)
+    if ip_address is None:
+        logging.error("Hostname not found in NetBox")
+        sys.exit(1)
+
+    logging.debug("Got IP %s for hostname %s", ip_address, hostname)
+    device = ip_address.assigned_object.device
+
+    if device is None:
+        logging.error("Device not found in NetBox")
+        sys.exit(1)
+
+    logging.debug("Got device %s for hostname %s", device, hostname)
+    return device
+
+
+def _get_device(opts):
+    if opts.magdb_id:
+        device = _get_device_by_magdb_id(opts.magdb_id)
+    elif opts.netboxname:
+        device = _get_device_by_name(opts.netboxname)
+    elif opts.hostname:
+        device = _get_device_by_hostname(opts.hostname)
+    else:
+        logging.error("No device specification provided")
+        sys.exit(2)
+
+    # check if device has a primary ip
+    if device.primary_ip is None:
+        logging.error("No primary IP defined for host")
+        sys.exit(1)
+
+    # check if device has a tenant
+    if device.tenant is None:
+        logging.error("No tenant defined for host")
+        sys.exit(1)
+
+    return device
+
+
+def _get_rack_from_device(device):
+    # check if host is in rack - query netbox for rack
+    rack = NETBOX.dcim.racks.get(device.rack.id)
+
+    if rack is None:
+        logging.error("host not in rack?")
+        sys.exit(1)
+
+    # check facility_id is present
+    if rack.facility_id is None:
+        logging.error("no facility ID found for rack")
+        sys.exit(1)
+
+    return rack
+
+
+def _get_interfaces_from_device(device):
+    # next step is to add interfaces to the machine in Aquilon
+    # We need to use 'filter' to retrieve the interface id for all interfaces
+    # This will assume that the device name IS UNIQUE
+    filter_interfaces = NETBOX.dcim.interfaces.filter(device=device.name)
+
+    if len(filter_interfaces) == 0:
+        logging.error("No interfaces found")
+        sys.exit(1)
+
+    interfaces = []
+    unusedintf = 0
+    for interface in filter_interfaces:
+        if interface.mac_address:
+            interfaces.append(interface)
+        else:
+            unusedintf += 1
+
+    if unusedintf:
+        logging.warning("%s interfaces without mac address were not included", unusedintf)
+
+    return interfaces
+
+
+def _get_current_sandbox():
+    sandbox = None
+    git_rev_parse = subprocess.run(
+        ['git', 'rev-parse', '--show-toplevel'],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
     )
-    jsonoutput = json.loads(request.text)
-
-    # This should only be if you are not searching, but directly accessing
-    # In which case there is no count value and the next if will exit
-    # so return the output before that happens
-    if parameters is None and expected_number is None:
-        return jsonoutput
-
-    if 'count' not in jsonoutput:
-        sys.exit('Error: incorrectly formed response from netbox - no count value')
-
-    if expected_number:
-        if jsonoutput['count'] != expected_number:
-            sys.exit('Unexpected number of responses from netbox: %s, expected %s' % (
-                jsonoutput['count'],
-                expected_number,
-            ))
-
-        if expected_number == 1:
-            return jsonoutput['results'][0]
-
-    return jsonoutput['count'], jsonoutput['results']
+    if git_rev_parse.returncode == 0:
+        sandbox = b'/'.join([
+            os.path.basename(os.path.dirname(git_rev_parse.stdout)),
+            os.path.basename(git_rev_parse.stdout.strip()),
+        ]).decode('utf-8')
+    return sandbox
 
 
-def copy(opts):
-    """Handles the copying of info to aquilon
+def _call_aq(opts, cmds):
+    for cmd in cmds:
+        if opts.dryrun:
+            print('aq ' + cmd)
+        else:
+            retval = subprocess.call([CONFIG['aquilon']['cli_path']]+cmd.split(' '))
+            if retval != 0:
+                logging.error('Commmand %s %s exited with error code %d', CONFIG['aquilon']['cli_path'], cmd, retval)
+                sys.exit(1)
+
+
+def netbox_copy(opts):
+    """
+    Queries NetBox for a device based on it's MagDB system ID
 
     Takes 1 parameter:
     opts - a dict of options configured from commandline parameters
-
-    Queries netbox three times, for the device, rack and interfaces of the
-    device and runs 3 types of aquilon commands to create the machine, add
-    interfaces to the machine and add a host to the machine
     """
-
     cmds = []
 
-    # First query for the device and the rack its in
+    device = _get_device(opts)
 
-    hst = netbox_query('dcim/devices/', {'name': opts.hostname}, 1)
+    # Preserve MagDB style machine naming for migrated hosts
+    machine_name = f'netbox-{device.id}'
+    if 'magdb2netbox' in [t.slug for t in device.tags]:
+        machine_name = f'system{device.custom_fields["magdb_system_id"]}'
 
-    # Sanity check host info
-    if not hst['primary_ip']:
-        sys.exit('Error - no primary ip defined for host')
-    if not hst['tenant']:
-        sys.exit('Error - no tenant defined for host')
+    # check if host is in rack - query netbox for rack
+    rack = _get_rack_from_device(device)
 
-    if hst['rack']:
-        rck = netbox_query('dcim/racks/%s' % hst['rack']['id'], None, None)
-    else:
-        sys.exit('Error: Host not in rack?')
+    rack_delimeter = '-'  # Default naming convention for new racks
+    if 'magdb2netbox' in [t.slug for t in rack.tags]:
+        rack_delimeter = 'rack'  # Preserve magdb2aquilon style names for migrated racks
 
-    # Sanity check rack info
-    if not rck['facility_id']:
-        sys.exit('Error - no facility id for rack')
-    if isinstance(rck['facility_id'], str):
-        sys.exit('Error - facility id is not numeric')
+    rack_name = rack_delimeter.join([device.site.facility.lower(), rack.facility_id])
 
-    cmds.append("add_machine --machine %s%d --model %s --rack %s-%s" % (
-        MACHINE_PREFIX,
-        hst['id'],
-        hst['device_type']['slug'],
-        hst['site']['slug'],
-        rck['facility_id'],
-    ))
+    cmds.append(f'add_machine --machine {machine_name} --model {device.device_type.slug} --rack {rack_name}')
 
-    # Now add interfaces to the machine
-
-    itf_count, itf = netbox_query('dcim/interfaces/', {'device': opts.hostname}, None)
-
-    unusedintf = 0
-    for i in range(0, itf_count):
-        if itf[i]['mac_address']:
-            cmds.append('add_interface --machine %s%d --mac %s --interface %s' % (
-                MACHINE_PREFIX, hst['id'], itf[i]['mac_address'], itf[i]['name']))
-        else:
-            unusedintf = unusedintf + 1
-
-    if unusedintf == itf_count:
-        sys.exit('Error: no interfaces with defined mac address')
-    elif unusedintf > 0:
-        print('# Note %s interfaces without mac address not included' % (unusedintf))
+    interfaces = _get_interfaces_from_device(device)
+    for interface in interfaces:
+        cmds.append(
+            f'add_interface --machine {machine_name} --mac {interface.mac_address} --interface {interface.name}'
+        )
 
     if opts.sandbox:
         aqdesttype = 'sandbox'
@@ -127,33 +217,27 @@ def copy(opts):
         aqdestval = opts.domain
 
     # Finally add the host to the machine
-    cmds.append('add_host --hostname %s --machine %s%d --archetype %s --ip %s --personality %s-%s --%s %s --osname %s --osversion %s' % (
-        opts.hostname,
-        MACHINE_PREFIX,
-        hst['id'],
-        opts.archetype,
-        hst['primary_ip']['address'].split('/')[0],
-        hst['device_role']['slug'],
-        hst['tenant']['slug'],
-        aqdesttype,
-        aqdestval,
-        opts.osname,
-        opts.osvers,
-    ))
+    cmds.append(' '.join([
+        'add_host',
+        f'--hostname {device.primary_ip.dns_name}',
+        f'--machine {machine_name}',
+        f'--archetype {opts.archetype}',
+        f'--ip {device.primary_ip.address.split("/")[0]}',
+        f'--personality {device.device_role.slug}-{device.tenant.slug}',
+        f'--{aqdesttype} {aqdestval}',
+        f'--osname {opts.osname}',
+        f'--osversion {opts.osvers}',
+    ]))
 
-    for cmd in cmds:
-        if opts.dryrun:
-            print('aq ' + cmd)
-        else:
-            retval = subprocess.call([AQ_PATH]+cmd.split(' '))
-            if retval != 0:
-                sys.exit('Error: commmand %s %s exited with error code %d' % (AQ_PATH, cmd, retval))
+    _call_aq(opts, cmds)
 
 
 if __name__ == "__main__":
+    logging.basicConfig(format='%(levelname)s: %(message)s')
+
     PARSER = argparse.ArgumentParser()
 
-    AQDEST = PARSER.add_mutually_exclusive_group(required=True)
+    AQDEST = PARSER.add_mutually_exclusive_group()
     AQDEST.add_argument(
         "--sandbox", "-s",
         help="Name of the sandbox in user/sandbox format to add the copied host to",
@@ -162,26 +246,51 @@ if __name__ == "__main__":
         "--domain", "-d",
         help="Name of the domain to add the copied host to",
     )
-    PARSER.add_argument(
-        "--hostname", "-n", required=True,
+
+    HOSTID = PARSER.add_mutually_exclusive_group(required=True)
+    HOSTID.add_argument(
+        "--hostname",
         help="Fully qualified domain name of host to copy from Netbox.",
     )
+    HOSTID.add_argument(
+        "--netboxname", "-n",
+        help="Name of device to copy from Netbox.",
+    )
+    HOSTID.add_argument(
+        "--magdb_id", "-m",
+        help="MagDB system ID of host to copy from Netbox.",
+    )
+
     PARSER.add_argument(
-        "--archetype", "-a", default=DEFAULT_ARCHETYPE,
-        help="Destination aquilon archetype for the host to be copied. Default: " + DEFAULT_ARCHETYPE,
+        "--archetype", "-a", default=CONFIG['aquilon']['archetype'],
+        help="Destination aquilon archetype for the host to be copied. Default: " + CONFIG['aquilon']['archetype'],
     )
     PARSER.add_argument(
-        "--osname", default=DEFAULT_OSNAME,
-        help="Name of the Operating system on the host. Default: " + DEFAULT_OSNAME,
+        "--osname", default=CONFIG['aquilon']['osname'],
+        help="Name of the Operating system on the host. Default: " + CONFIG['aquilon']['osname'],
     )
     PARSER.add_argument(
-        "--osvers", default=DEFAULT_OSVERSION,
-        help="Version of the Operating system on the host. Default: " + DEFAULT_OSVERSION,
+        "--osvers", default=CONFIG['aquilon']['osversion'],
+        help="Version of the Operating system on the host. Default: " + CONFIG['aquilon']['osversion'],
     )
     PARSER.add_argument(
         "--dryrun", action='store_true',
         help="Do not do anything to aquilon, instead print what would be done (currently true if not specified)",
     )
+    PARSER.add_argument(
+        "--debug", action='store_true',
+        help="Set logging level to debug.",
+    )
     OPTS, ARGS = PARSER.parse_known_args()
 
-    copy(OPTS)
+    if OPTS.debug:
+        logging.getLogger().setLevel(logging.DEBUG)
+
+    # If domain or sandbox have not been provided, then see if the command is being run from sandbox,
+    # if not, then use the domain configured as default.
+    if not OPTS.domain and not OPTS.sandbox:
+        OPTS.sandbox = _get_current_sandbox()
+        if not OPTS.sandbox:
+            OPTS.domain = CONFIG['aquilon']['domain']
+
+    netbox_copy(OPTS)
