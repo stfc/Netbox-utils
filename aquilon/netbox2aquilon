@@ -242,7 +242,7 @@ def _netbox_copy_vm(virtual_machine):
         f'--cluster {virtual_machine.cluster.name.lower()}',
         f'--cpuname {CONFIG["aquilon"]["cpuname"]}',
         f'--cpuspeed {CONFIG["aquilon"]["cpuspeed"]}',
-        f'--cpucount {virtual_machine.vcpus}',
+        f'--cpucount {int(virtual_machine.vcpus)}',
         f'--memory {virtual_machine.memory}',
     ]))
 
