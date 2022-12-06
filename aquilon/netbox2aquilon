@@ -286,6 +286,8 @@ def _netbox_copy_interfaces(device):
             f'--machine {device.aq_machine_name}',
             f'--mac {interface.mac_address}',
             f'--interface {interface.name}',
+            # Valid values are: bonding, bridge, loopback, management, oa, physical, public, virtual, vlan
+            '--iftype management' if interface.mgmt_only else '\b',
         ]))
 
         is_boot_interface = False
