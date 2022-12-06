@@ -260,6 +260,19 @@ def _netbox_copy_interfaces(device):
             f'--interface {interface.name}',
         ]))
 
+        is_boot_interface = False
+        for tag in interface.tags:
+            if tag.slug == 'bootable':
+                is_boot_interface = True
+
+        if is_boot_interface:
+            cmds.append(' '.join([
+                'update_interface',
+                f'--machine {device.aq_machine_name}',
+                f'--interface {interface.name}',
+                '--boot',
+            ]))
+
     return cmds
 
 
