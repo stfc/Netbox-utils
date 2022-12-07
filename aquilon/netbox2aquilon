@@ -170,6 +170,34 @@ def _get_interfaces_from_device(device):
     return interfaces
 
 
+def _get_addresses_from_interface(interface):
+    if interface.count_ipaddresses == 0:
+        return []
+
+    if  hasattr(interface, 'device'):
+        all_addresses = NETBOX.ipam.ip_addresses.filter(interface_id=interface.id)
+    elif hasattr(interface, 'virtual_machine'):
+        all_addresses = NETBOX.ipam.ip_addresses.filter(vminterface_id=interface.id)
+    else:
+        logging.warning('Unsupported interface type for interface "%s"', interface)
+        return []
+
+    ipv4_addresses = []
+    for address in all_addresses:
+        # We currently only support IPv4 addresses via broker assignment
+        if address.family.value == 4:
+            ipv4_addresses.append(address)
+        else:
+            logging.warning(
+                "Interface %s has an address (%s) defined in NetBox with an unsupported family (%s) which was ignored",
+                interface.name,
+                address.address,
+                address.family.label,
+            )
+
+    return ipv4_addresses
+
+
 def _get_current_sandbox():
     sandbox = None
     git_rev_parse = subprocess.run(
@@ -216,15 +244,6 @@ def _netbox_copy_device(device):
         f'--rack {rack_name}',
     ]))
 
-    interfaces = _get_interfaces_from_device(device)
-    for interface in interfaces:
-        cmds.append(' '.join([
-            'add_interface',
-            f'--machine {device.aq_machine_name}',
-            f'--mac {interface.mac_address}',
-            f'--interface {interface.name}',
-        ]))
-
     return cmds
 
 
@@ -255,15 +274,49 @@ def _netbox_copy_vm(virtual_machine):
         '--boot',
     ]))
 
-    interfaces = _get_interfaces_from_device(virtual_machine)
+    return cmds
+
+
+def _netbox_copy_interfaces(device):
+    cmds = []
+    interfaces = _get_interfaces_from_device(device)
     for interface in interfaces:
         cmds.append(' '.join([
             'add_interface',
-            f'--machine {virtual_machine.aq_machine_name}',
+            f'--machine {device.aq_machine_name}',
             f'--mac {interface.mac_address}',
             f'--interface {interface.name}',
+            # Valid values are: bonding, bridge, loopback, management, oa, physical, public, virtual, vlan
+            '--iftype management' if interface.mgmt_only else '\b',
         ]))
 
+        is_boot_interface = False
+        for tag in interface.tags:
+            if tag.slug == 'bootable':
+                is_boot_interface = True
+
+        if is_boot_interface:
+            cmds.append(' '.join([
+                'update_interface',
+                f'--machine {device.aq_machine_name}',
+                f'--interface {interface.name}',
+                '--boot',
+            ]))
+
+        addresses = _get_addresses_from_interface(interface)
+        for address in addresses:
+            # Don't add the primary IP as add_host will do this
+            if address.address != device.primary_ip.address:
+                # Remove prefix length as aquilon gets this from the network definition
+                address.address = address.address.split('/')[0]
+                cmds.append(' '.join([
+                    'add_interface_address',
+                    f'--machine {device.aq_machine_name}',
+                    f'--interface {interface.name}',
+                    f'--fqdn {address.dns_name}' if address.dns_name else '\b',
+                    f'--network_environment {address.vrf}' if address.vrf else '\b',
+                    f'--ip {address.address}',
+                ]))
     return cmds
 
 
@@ -298,6 +351,8 @@ def _netbox_copy(opts):
     if not personality:
         logging.error('Unable to determine personality of device "%s"', type(device))
         sys.exit(1)
+
+    cmds.extend(_netbox_copy_interfaces(device))
 
     # Finally add the host to the machine
     cmds.append(' '.join([
