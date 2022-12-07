@@ -288,7 +288,9 @@ def _netbox_copy(opts):
         personality = f'{device.device_role.slug}-{device.tenant.slug}'
     elif isinstance(device, pynetbox.models.virtualization.VirtualMachines):
         cmds = _netbox_copy_vm(device)
-        personality = f'{device.role.slug}-{device.tenant.slug}'
+        personality = 'inventory'
+        if device.role:
+            personality = f'{device.role.slug}-{device.tenant.slug}'
     else:
         logging.error('Unsupported device type to copy "%s"', type(device))
         sys.exit(1)
