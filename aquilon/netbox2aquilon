@@ -306,21 +306,17 @@ def _netbox_copy_interfaces(device):
         addresses = _get_addresses_from_interface(interface)
         for address in addresses:
             # Don't add the primary IP as add_host will do this
-            # If there is no dns_name in netbox for the address do not do this as we have
-            # not done the add_host so there is no primary name for the host, so the fqdn
-            # will be needed by add_interface_address
-            if address.address != device.primary_ip.address and address.dns_name:
+            if address.address != device.primary_ip.address:
                 # Remove prefix length as aquilon gets this from the network definition
                 address.address = address.address.split('/')[0]
-                cmd = ['add_interface_address',
-                       f'--machine {device.aq_machine_name}',
-                       f'--interface {interface.name}',
-                       f'--ip {address.address}',
-                       f'--fqdn {address.dns_name}'
-                      ]
-                if address.vrf:
-                   cmd.append(f'--network_environment {address.vrf}');
-                cmds.append(' '.join(cmd))
+                cmds.append(' '.join([
+                    'add_interface_address',
+                    f'--machine {device.aq_machine_name}',
+                    f'--interface {interface.name}',
+                    f'--fqdn {address.dns_name}' if address.dns_name else '\b',
+                    f'--network_environment {address.vrf}' if address.vrf else '\b',
+                    f'--ip {address.address}',
+                ]))
     return cmds
 
 
