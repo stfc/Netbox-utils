@@ -281,14 +281,14 @@ def _netbox_copy_interfaces(device):
     cmds = []
     interfaces = _get_interfaces_from_device(device)
     for interface in interfaces:
-        cmds.append(' '.join([
+        cmds.append((' '.join([
             'add_interface',
             f'--machine {device.aq_machine_name}',
             f'--mac {interface.mac_address}',
             f'--interface {interface.name}',
             # Valid values are: bonding, bridge, loopback, management, oa, physical, public, virtual, vlan
-            '--iftype management' if interface.mgmt_only else '\b',
-        ]))
+            '--iftype management' if interface.mgmt_only else '',
+        ])).strip())
 
         is_boot_interface = False
         for tag in interface.tags:
