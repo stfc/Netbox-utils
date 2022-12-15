@@ -424,7 +424,7 @@ if __name__ == "__main__":
     )
     PARSER.add_argument(
         "--dryrun", action='store_true',
-        help="Do not do anything to aquilon, instead print what would be done (currently true if not specified)",
+        help="Do not do anything to aquilon, instead print what would be done",
     )
     PARSER.add_argument(
         "--debug", action='store_true',
