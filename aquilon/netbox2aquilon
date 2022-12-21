@@ -41,7 +41,12 @@ class Netbox2Aquilon(SCDNetbox):
             else:
                 retval = subprocess.call([self.config['aquilon']['cli_path']]+cmd.split(' '))
                 if retval != 0:
-                    logging.error('Commmand %s %s exited with error code %d', self.config['aquilon']['cli_path'], cmd, retval)
+                    logging.error(
+                        'Commmand %s %s exited with error code %d',
+                        self.config['aquilon']['cli_path'],
+                        cmd,
+                        retval,
+                    )
                     sys.exit(1)
 
     def _netbox_get_device(self, opts):
