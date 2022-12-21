@@ -2,7 +2,9 @@
     Library of common functionality used for interacting with SCD's NetBox instance
 """
 
+import configparser
 import logging
+import os.path
 import sys
 import requests
 import pynetbox
@@ -12,18 +14,42 @@ class SCDNetbox():
     """
         This class is intended to either used directly, or subclassed by other tools to add extra functionality.
     """
-    def __init__(self, config):
+    def __init__(self, additonal_config_name=None):
         """ Connect to NetBox and set up session """
         netbox_session = requests.Session()
 
-        if config['netbox']['cert_path']:
-            if config['netbox']['cert_path'].lower() == 'false':
+        self.config = configparser.ConfigParser()
+        self.config['netbox'] = {
+            'url': 'https://netbox.example.org/',
+            'cert_path': '',
+            'token': 'TOKEN',
+        }
+        self.config['aquilon'] = {
+            'archetype': 'ral-tier1',
+            'osname': 'rocky',
+            'osversion': '8x-x86_64',
+            'cli_path': '/opt/aquilon/bin/aq.py',
+            'domain': 'staging',
+            'cpuname': 'xeon_e5_2650v4',
+            'cpuspeed': '2200',
+        }
+        self.config.read([
+            '/var/quattor/etc/scd_netbox.cfg',
+            os.path.expanduser('~/.scd_netbox.cfg'),
+        ])
+        if additonal_config_name:
+            self.config.read([
+                f'/var/quattor/etc/{additonal_config_name}.cfg',
+                os.path.expanduser(f'~/.{additonal_config_name}.cfg'),
+            ])
+
+        if self.config['netbox']['cert_path']:
+            if self.config['netbox']['cert_path'].lower() == 'false':
                 netbox_session.verify = False
             else:
-                netbox_session.verify = config['netbox']['cert_path']
+                netbox_session.verify = self.config['netbox']['cert_path']
 
-        self.config = config
-        self.netbox = pynetbox.api(config['netbox']['url'], token=config['netbox']['token'])
+        self.netbox = pynetbox.api(self.config['netbox']['url'], token=self.config['netbox']['token'])
         self.netbox.http_session = netbox_session
 
     def get_device_by_magdb_id(self, magdb_id):

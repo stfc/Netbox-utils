@@ -3,7 +3,6 @@
 """ netbox2aquilon - script to extract data out of netbox and use it to create aquilon entities."""
 
 import argparse
-import configparser
 import logging
 import os.path
 import subprocess
@@ -225,25 +224,7 @@ class Netbox2Aquilon(SCDNetbox):
 def _main():
     logging.basicConfig(format='%(levelname)s: %(message)s')
 
-    config = configparser.ConfigParser()
-    config['netbox'] = {
-        'url': 'https://netbox.example.org/',
-        'cert_path': '',
-        'token': 'TOKEN',
-    }
-    config['aquilon'] = {
-        'archetype': 'ral-tier1',
-        'osname': 'rocky',
-        'osversion': '8x-x86_64',
-        'cli_path': '/opt/aquilon/bin/aq.py',
-        'domain': 'staging',
-        'cpuname': 'xeon_e5_2650v4',
-        'cpuspeed': '2200',
-    }
-    config.read([
-        '/var/quattor/etc/' + os.path.basename(__file__) + '.cfg',
-        os.path.expanduser('~/.netbox2aquilon.cfg'),
-    ])
+    netbox2aquilon = Netbox2Aquilon(additonal_config_name='netbox2aquilon')
 
     parser = argparse.ArgumentParser()
 
@@ -272,16 +253,25 @@ def _main():
     )
 
     parser.add_argument(
-        "--archetype", "-a", default=config['aquilon']['archetype'],
-        help="Destination aquilon archetype for the host to be copied. Default: " + config['aquilon']['archetype'],
+        "--archetype", "-a", default=netbox2aquilon.config['aquilon']['archetype'],
+        help=(
+            "Destination aquilon archetype for the host to be copied. Default: " +
+            netbox2aquilon.config['aquilon']['archetype']
+        ),
     )
     parser.add_argument(
-        "--osname", default=config['aquilon']['osname'],
-        help="Name of the Operating system on the host. Default: " + config['aquilon']['osname'],
+        "--osname", default=netbox2aquilon.config['aquilon']['osname'],
+        help=(
+            "Name of the Operating system on the host. Default: " +
+            netbox2aquilon.config['aquilon']['osname']
+        ),
     )
     parser.add_argument(
-        "--osvers", default=config['aquilon']['osversion'],
-        help="Version of the Operating system on the host. Default: " + config['aquilon']['osversion'],
+        "--osvers", default=netbox2aquilon.config['aquilon']['osversion'],
+        help=(
+            "Version of the Operating system on the host. Default: " +
+            netbox2aquilon.config['aquilon']['osversion']
+        ),
     )
     parser.add_argument(
         "--dryrun", action='store_true',
@@ -298,14 +288,12 @@ def _main():
     if opts.debug:
         coloredlogs.set_level(logging.DEBUG)
 
-    netbox2aquilon = Netbox2Aquilon(config)
-
     # If domain or sandbox have not been provided, then see if the command is being run from sandbox,
     # if not, then use the domain configured as default.
     if not opts.domain and not opts.sandbox:
         opts.sandbox = netbox2aquilon.get_current_sandbox()
         if not opts.sandbox:
-            opts.domain = config['aquilon']['domain']
+            opts.domain = netbox2aquilon.config['aquilon']['domain']
 
     netbox2aquilon.netbox_copy(opts)
 
