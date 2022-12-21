@@ -222,16 +222,16 @@ class Netbox2Aquilon(SCDNetbox):
         self._call_aq(opts, cmds)
 
 
-if __name__ == "__main__":
+def _main():
     logging.basicConfig(format='%(levelname)s: %(message)s')
 
-    CONFIG = configparser.ConfigParser()
-    CONFIG['netbox'] = {
+    config = configparser.ConfigParser()
+    config['netbox'] = {
         'url': 'https://netbox.example.org/',
         'cert_path': '',
         'token': 'TOKEN',
     }
-    CONFIG['aquilon'] = {
+    config['aquilon'] = {
         'archetype': 'ral-tier1',
         'osname': 'rocky',
         'osversion': '8x-x86_64',
@@ -240,71 +240,75 @@ if __name__ == "__main__":
         'cpuname': 'xeon_e5_2650v4',
         'cpuspeed': '2200',
     }
-    CONFIG.read([
+    config.read([
         '/var/quattor/etc/' + os.path.basename(__file__) + '.cfg',
         os.path.expanduser('~/.netbox2aquilon.cfg'),
     ])
 
-    PARSER = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser()
 
-    AQDEST = PARSER.add_mutually_exclusive_group()
-    AQDEST.add_argument(
+    aqdest = parser.add_mutually_exclusive_group()
+    aqdest.add_argument(
         "--sandbox", "-s",
         help="Name of the sandbox in user/sandbox format to add the copied host to",
     )
-    AQDEST.add_argument(
+    aqdest.add_argument(
         "--domain", "-d",
         help="Name of the domain to add the copied host to",
     )
 
-    HOSTID = PARSER.add_mutually_exclusive_group(required=True)
-    HOSTID.add_argument(
+    hostid = parser.add_mutually_exclusive_group(required=True)
+    hostid.add_argument(
         "--hostname",
         help="Fully qualified domain name of host to copy from Netbox.",
     )
-    HOSTID.add_argument(
+    hostid.add_argument(
         "--netboxname", "-n",
         help="Name of device to copy from Netbox.",
     )
-    HOSTID.add_argument(
+    hostid.add_argument(
         "--magdb_id", "-m",
         help="MagDB system ID of host to copy from Netbox.",
     )
 
-    PARSER.add_argument(
-        "--archetype", "-a", default=CONFIG['aquilon']['archetype'],
-        help="Destination aquilon archetype for the host to be copied. Default: " + CONFIG['aquilon']['archetype'],
+    parser.add_argument(
+        "--archetype", "-a", default=config['aquilon']['archetype'],
+        help="Destination aquilon archetype for the host to be copied. Default: " + config['aquilon']['archetype'],
     )
-    PARSER.add_argument(
-        "--osname", default=CONFIG['aquilon']['osname'],
-        help="Name of the Operating system on the host. Default: " + CONFIG['aquilon']['osname'],
+    parser.add_argument(
+        "--osname", default=config['aquilon']['osname'],
+        help="Name of the Operating system on the host. Default: " + config['aquilon']['osname'],
     )
-    PARSER.add_argument(
-        "--osvers", default=CONFIG['aquilon']['osversion'],
-        help="Version of the Operating system on the host. Default: " + CONFIG['aquilon']['osversion'],
+    parser.add_argument(
+        "--osvers", default=config['aquilon']['osversion'],
+        help="Version of the Operating system on the host. Default: " + config['aquilon']['osversion'],
     )
-    PARSER.add_argument(
+    parser.add_argument(
         "--dryrun", action='store_true',
         help="Do not do anything to aquilon, instead print what would be done",
     )
-    PARSER.add_argument(
+    parser.add_argument(
         "--debug", action='store_true',
         help="Set logging level to debug.",
     )
-    OPTS, ARGS = PARSER.parse_known_args()
+    opts, _ = parser.parse_known_args()
 
     coloredlogs.install(fmt='%(levelname)7s: %(message)s')
 
-    if OPTS.debug:
+    if opts.debug:
         coloredlogs.set_level(logging.DEBUG)
 
-    netbox2aquilon = Netbox2Aquilon(CONFIG)
+    netbox2aquilon = Netbox2Aquilon(config)
 
     # If domain or sandbox have not been provided, then see if the command is being run from sandbox,
     # if not, then use the domain configured as default.
-    if not OPTS.domain and not OPTS.sandbox:
-        OPTS.sandbox = netbox2aquilon.get_current_sandbox()
-        if not OPTS.sandbox:
-            OPTS.domain = CONFIG['aquilon']['domain']
+    if not opts.domain and not opts.sandbox:
+        opts.sandbox = netbox2aquilon.get_current_sandbox()
+        if not opts.sandbox:
+            opts.domain = config['aquilon']['domain']
 
-    netbox2aquilon.netbox_copy(OPTS)
+    netbox2aquilon.netbox_copy(opts)
+
+
+if __name__ == "__main__":
+    _main()
