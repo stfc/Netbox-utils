@@ -10,9 +10,9 @@ import subprocess
 import sys
 
 import coloredlogs
-import requests
 import pynetbox
 
+from scd_netbox import SCDNetbox
 
 CONFIG = configparser.ConfigParser()
 CONFIG['netbox'] = {
@@ -34,351 +34,211 @@ CONFIG.read([
     os.path.expanduser('~/.netbox2aquilon.cfg'),
 ])
 
+class Netbox2Aquilon(SCDNetbox):
+    """ Extends base SCDNetbox class with aquilon specific functionality """
 
-# connect to NetBox and set up session
-NETBOX_SESSION = requests.Session()
+    @classmethod
+    def get_current_sandbox(cls):
+        """ Get owner and name of sandbox if command is being run while inside one """
+        sandbox = None
+        git_rev_parse = subprocess.run(
+            ['git', 'rev-parse', '--show-toplevel'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        if git_rev_parse.returncode == 0:
+            sandbox = b'/'.join([
+                os.path.basename(os.path.dirname(git_rev_parse.stdout)),
+                os.path.basename(git_rev_parse.stdout.strip()),
+            ]).decode('utf-8')
+        return sandbox
 
-if CONFIG['netbox']['cert_path']:
-    if CONFIG['netbox']['cert_path'].lower() == 'false':
-        NETBOX_SESSION.verify = False
-    else:
-        NETBOX_SESSION.verify = CONFIG['netbox']['cert_path']
+    def _call_aq(self, opts, cmds):
+        for cmd in cmds:
+            if opts.dryrun:
+                print('aq ' + cmd)
+            else:
+                retval = subprocess.call([self.config['aquilon']['cli_path']]+cmd.split(' '))
+                if retval != 0:
+                    logging.error('Commmand %s %s exited with error code %d', self.config['aquilon']['cli_path'], cmd, retval)
+                    sys.exit(1)
 
-NETBOX = pynetbox.api(CONFIG['netbox']['url'], token=CONFIG['netbox']['token'])
-NETBOX.http_session = NETBOX_SESSION
-
-
-def _get_device_by_magdb_id(magdb_id):
-    # get device from NetBox based on their MagDB system ID
-    device = NETBOX.dcim.devices.get(cf_magdb_system_id=magdb_id)
-
-    if device is None:
-        logging.error("Device not found in NetBox")
-        sys.exit(1)
-
-    logging.debug("Got device %s for MagDB ID %s", device, magdb_id)
-    return device
-
-
-def _get_device_by_name(name):
-    device = NETBOX.dcim.devices.get(name=name)
-
-    if device is None:
-        logging.error("Device not found in NetBox")
-        sys.exit(1)
-
-    logging.debug("Got device %s for name %s", device, name)
-    return device
-
-
-def _get_device_by_hostname(hostname):
-    ip_address = NETBOX.ipam.ip_addresses.get(dns_name=hostname)
-    if ip_address is None:
-        logging.error("Hostname not found in NetBox")
-        sys.exit(1)
-
-    logging.debug("Got IP %s for hostname %s", ip_address, hostname)
-
-    # The ip_address is assigned to an object, which is what we are after,
-    # unfortunately the property will return a pynetbox.core.response.Record object,
-    # so we need to use the id to obtain the "real" object and preserve the type.
-    if ip_address.assigned_object_type == 'dcim.interface':
-        logging.debug("IP %s is assigned to a physical interface")
-        device = NETBOX.dcim.devices.get(ip_address.assigned_object.device.id)
-    elif ip_address.assigned_object_type == 'virtualization.vminterface':
-        logging.debug("IP %s is assigned to a virtual machine interface")
-        device = NETBOX.virtualization.virtual_machines.get(ip_address.assigned_object.virtual_machine.id)
-    else:
-        logging.error("Unknown assigned_object_type %s for IP %s", ip_address.assigned_object_type, ip_address)
-        sys.exit(1)
-
-    if device is None:
-        logging.error("Device not found in NetBox")
-        sys.exit(1)
-
-    logging.debug("Got device %s for hostname %s", device, hostname)
-    return device
-
-
-def _get_device(opts):
-    if opts.magdb_id:
-        device = _get_device_by_magdb_id(opts.magdb_id)
-    elif opts.netboxname:
-        device = _get_device_by_name(opts.netboxname)
-    elif opts.hostname:
-        device = _get_device_by_hostname(opts.hostname)
-    else:
-        logging.error("No device specification provided")
-        sys.exit(2)
-
-    # check if device has a primary ip
-    if device.primary_ip is None:
-        logging.error("No primary IP defined for host")
-        sys.exit(1)
-
-    # check if device has a tenant
-    if device.tenant is None:
-        logging.error("No tenant defined for host")
-        sys.exit(1)
-
-    return device
-
-
-def _get_rack_from_device(device):
-    # check if host is in rack - query netbox for rack
-    rack = NETBOX.dcim.racks.get(device.rack.id)
-
-    if rack is None:
-        logging.error("host not in rack?")
-        sys.exit(1)
-
-    # check facility_id is present
-    if rack.facility_id is None:
-        logging.error("no facility ID found for rack")
-        sys.exit(1)
-
-    return rack
-
-
-def _get_interfaces_from_device(device):
-    # next step is to add interfaces to the machine in Aquilon
-    # We need to use 'filter' to retrieve the interface id for all interfaces
-    # This will assume that the device name IS UNIQUE
-    if isinstance(device, pynetbox.models.dcim.Devices):
-        filter_interfaces = NETBOX.dcim.interfaces.filter(device=device.name)
-    elif isinstance(device, pynetbox.models.virtualization.VirtualMachines):
-        filter_interfaces = NETBOX.virtualization.interfaces.filter(virtual_machine=device.name)
-    else:
-        logging.error('Unsupported device type for interfaces "%s"', type(device))
-        sys.exit(1)
-
-    if len(filter_interfaces) == 0:
-        logging.error("No interfaces found")
-        sys.exit(1)
-
-    interfaces = []
-    unusedintf = 0
-    for interface in filter_interfaces:
-        if interface.mac_address:
-            interfaces.append(interface)
+    def _netbox_get_device(self, opts):
+        if opts.magdb_id:
+            device = self.get_device_by_magdb_id(opts.magdb_id)
+        elif opts.netboxname:
+            device = self.get_device_by_name(opts.netboxname)
+        elif opts.hostname:
+            device = self.get_device_by_hostname(opts.hostname)
         else:
-            unusedintf += 1
+            logging.error("No device specification provided")
+            sys.exit(2)
 
-    if unusedintf:
-        logging.warning("%s interfaces without mac address were not included", unusedintf)
+        # check if device has a primary ip
+        if device.primary_ip is None:
+            logging.error("No primary IP defined for host")
+            sys.exit(1)
 
-    return interfaces
+        # check if device has a tenant
+        if device.tenant is None:
+            logging.error("No tenant defined for host")
+            sys.exit(1)
 
+        return device
 
-def _get_addresses_from_interface(interface):
-    if interface.count_ipaddresses == 0:
-        return []
+    def _netbox_copy_device(self, device):
+        cmds = []
 
-    if  hasattr(interface, 'device'):
-        all_addresses = NETBOX.ipam.ip_addresses.filter(interface_id=interface.id)
-    elif hasattr(interface, 'virtual_machine'):
-        all_addresses = NETBOX.ipam.ip_addresses.filter(vminterface_id=interface.id)
-    else:
-        logging.warning('Unsupported interface type for interface "%s"', interface)
-        return []
+        # check if host is in rack - query netbox for rack
+        rack = self.get_rack_from_device(device)
 
-    ipv4_addresses = []
-    for address in all_addresses:
-        # We currently only support IPv4 addresses via broker assignment
-        if address.family.value == 4:
-            ipv4_addresses.append(address)
-        else:
-            logging.warning(
-                "Interface %s has an address (%s) defined in NetBox with an unsupported family (%s) which was ignored",
-                interface.name,
-                address.address,
-                address.family.label,
-            )
+        rack_delimeter = '-'  # Default naming convention for new racks
+        if 'magdb2netbox' in [t.slug for t in rack.tags]:
+            rack_delimeter = 'rack'  # Preserve magdb2aquilon style names for migrated racks
 
-    return ipv4_addresses
+        rack_name = rack_delimeter.join([device.site.facility.lower(), rack.facility_id])
 
-
-def _get_current_sandbox():
-    sandbox = None
-    git_rev_parse = subprocess.run(
-        ['git', 'rev-parse', '--show-toplevel'],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=False,
-    )
-    if git_rev_parse.returncode == 0:
-        sandbox = b'/'.join([
-            os.path.basename(os.path.dirname(git_rev_parse.stdout)),
-            os.path.basename(git_rev_parse.stdout.strip()),
-        ]).decode('utf-8')
-    return sandbox
-
-
-def _call_aq(opts, cmds):
-    for cmd in cmds:
-        if opts.dryrun:
-            print('aq ' + cmd)
-        else:
-            retval = subprocess.call([CONFIG['aquilon']['cli_path']]+cmd.split(' '))
-            if retval != 0:
-                logging.error('Commmand %s %s exited with error code %d', CONFIG['aquilon']['cli_path'], cmd, retval)
-                sys.exit(1)
-
-
-def _netbox_copy_device(device):
-    cmds = []
-
-    # check if host is in rack - query netbox for rack
-    rack = _get_rack_from_device(device)
-
-    rack_delimeter = '-'  # Default naming convention for new racks
-    if 'magdb2netbox' in [t.slug for t in rack.tags]:
-        rack_delimeter = 'rack'  # Preserve magdb2aquilon style names for migrated racks
-
-    rack_name = rack_delimeter.join([device.site.facility.lower(), rack.facility_id])
-
-    cmds.append(' '.join([
-        'add_machine',
-        f'--machine {device.aq_machine_name}',
-        f'--model {device.device_type.slug}',
-        f'--rack {rack_name}',
-    ]))
-
-    return cmds
-
-
-def _netbox_copy_vm(virtual_machine):
-    cmds = []
-
-    if not virtual_machine.disk:
-        logging.error('Cannot continue, virtual disk size not present.')
-        sys.exit(1)
-
-    cmds.append(' '.join([
-        'add_machine',
-        f'--machine {virtual_machine.aq_machine_name}',
-        '--model virtual/vm-vmware',  # Or opts.model?
-        f'--cluster {virtual_machine.cluster.name.lower()}',
-        f'--cpuname {CONFIG["aquilon"]["cpuname"]}',
-        f'--cpuspeed {CONFIG["aquilon"]["cpuspeed"]}',
-        f'--cpucount {int(virtual_machine.vcpus)}',
-        f'--memory {virtual_machine.memory}',
-    ]))
-
-    cmds.append(' '.join([
-        'add_disk',
-        f'--machine {virtual_machine.aq_machine_name}',
-        '--disk sda',
-        '--controller sata',
-        f'--size {virtual_machine.disk}',
-        '--boot',
-    ]))
-
-    return cmds
-
-
-def _netbox_copy_interfaces(device):
-    cmds = []
-    interfaces = _get_interfaces_from_device(device)
-    for interface in interfaces:
-        cmds.append((' '.join([
-            'add_interface',
+        cmds.append(' '.join([
+            'add_machine',
             f'--machine {device.aq_machine_name}',
-            f'--mac {interface.mac_address}',
-            f'--interface {interface.name}',
-            # Valid values are: bonding, bridge, loopback, management, oa, physical, public, virtual, vlan
-            '--iftype management' if interface.mgmt_only else '',
-        ])).strip())
+            f'--model {device.device_type.slug}',
+            f'--rack {rack_name}',
+        ]))
 
-        is_boot_interface = False
-        for tag in interface.tags:
-            if tag.slug == 'bootable':
-                is_boot_interface = True
+        return cmds
 
-        if is_boot_interface:
-            cmds.append(' '.join([
-                'update_interface',
+    def _netbox_copy_vm(self, virtual_machine):
+        cmds = []
+
+        if not virtual_machine.disk:
+            logging.error('Cannot continue, virtual disk size not present.')
+            sys.exit(1)
+
+        cmds.append(' '.join([
+            'add_machine',
+            f'--machine {virtual_machine.aq_machine_name}',
+            '--model virtual/vm-vmware',  # Or opts.model?
+            f'--cluster {virtual_machine.cluster.name.lower()}',
+            f'--cpuname {self.config["aquilon"]["cpuname"]}',
+            f'--cpuspeed {self.config["aquilon"]["cpuspeed"]}',
+            f'--cpucount {int(virtual_machine.vcpus)}',
+            f'--memory {virtual_machine.memory}',
+        ]))
+
+        cmds.append(' '.join([
+            'add_disk',
+            f'--machine {virtual_machine.aq_machine_name}',
+            '--disk sda',
+            '--controller sata',
+            f'--size {virtual_machine.disk}',
+            '--boot',
+        ]))
+
+        return cmds
+
+    def _netbox_copy_interfaces(self, device):
+        cmds = []
+        interfaces = self.get_interfaces_from_device(device)
+        for interface in interfaces:
+            cmds.append((' '.join([
+                'add_interface',
                 f'--machine {device.aq_machine_name}',
+                f'--mac {interface.mac_address}',
                 f'--interface {interface.name}',
-                '--boot',
-            ]))
-    return cmds
+                # Valid values are: bonding, bridge, loopback, management, oa, physical, public, virtual, vlan
+                '--iftype management' if interface.mgmt_only else '',
+            ])).strip())
 
-def _netbox_copy_addresses(device):
-    cmds = []
-    interfaces = _get_interfaces_from_device(device)
-    for interface in interfaces:
-        addresses = _get_addresses_from_interface(interface)
-        for address in addresses:
-            # Don't add the primary IP as add_host does this
-            if address.address != device.primary_ip.address:
-                # Remove prefix length as aquilon gets this from the network definition
-                address.address = address.address.split('/')[0]
-                cmd = [
-                    'add_interface_address',
+            is_boot_interface = False
+            for tag in interface.tags:
+                if tag.slug == 'bootable':
+                    is_boot_interface = True
+
+            if is_boot_interface:
+                cmds.append(' '.join([
+                    'update_interface',
                     f'--machine {device.aq_machine_name}',
                     f'--interface {interface.name}',
-                    f'--ip {address.address}',
-                ]
-                if address.dns_name:
-                    cmd.append(f'--fqdn {address.dns_name}')
-                if address.vrf:
-                    cmd.append(f'--network_environment {address.vrf}')
-                cmds.append(' '.join(cmd))
-    return cmds
+                    '--boot',
+                ]))
+        return cmds
 
+    def _netbox_copy_addresses(self, device):
+        cmds = []
+        interfaces = self.get_interfaces_from_device(device)
+        for interface in interfaces:
+            addresses = self.get_addresses_from_interface(interface)
+            for address in addresses:
+                # Don't add the primary IP as add_host does this
+                if address.address != device.primary_ip.address:
+                    # Remove prefix length as aquilon gets this from the network definition
+                    address.address = address.address.split('/')[0]
+                    cmd = [
+                        'add_interface_address',
+                        f'--machine {device.aq_machine_name}',
+                        f'--interface {interface.name}',
+                        f'--ip {address.address}',
+                    ]
+                    if address.dns_name:
+                        cmd.append(f'--fqdn {address.dns_name}')
+                    if address.vrf:
+                        cmd.append(f'--network_environment {address.vrf}')
+                    cmds.append(' '.join(cmd))
+        return cmds
 
-def _netbox_copy(opts):
-    device = _get_device(opts)
+    def netbox_copy(self, opts):
+        """ Copy a device from NetBox to Aquilon """
+        device = self._netbox_get_device(opts)
 
-    if opts.sandbox:
-        aqdesttype = 'sandbox'
-        aqdestval = opts.sandbox
-    elif opts.domain:
-        aqdesttype = 'domain'
-        aqdestval = opts.domain
+        if opts.sandbox:
+            aqdesttype = 'sandbox'
+            aqdestval = opts.sandbox
+        elif opts.domain:
+            aqdesttype = 'domain'
+            aqdestval = opts.domain
 
-    # Preserve MagDB style machine naming for migrated hosts
-    # Add a property to the object to store the desired aquilon machine name
-    device.aq_machine_name = f'netbox-{device.id}'
-    if 'magdb2netbox' in [t.slug for t in device.tags]:
-        device.aq_machine_name = f'system{device.custom_fields["magdb_system_id"]}'
+        # Preserve MagDB style machine naming for migrated hosts
+        # Add a property to the object to store the desired aquilon machine name
+        device.aq_machine_name = f'netbox-{device.id}'
+        if 'magdb2netbox' in [t.slug for t in device.tags]:
+            device.aq_machine_name = f'system{device.custom_fields["magdb_system_id"]}'
 
-    if isinstance(device, pynetbox.models.dcim.Devices):
-        cmds = _netbox_copy_device(device)
-        personality = f'{device.device_role.slug}-{device.tenant.slug}'
-    elif isinstance(device, pynetbox.models.virtualization.VirtualMachines):
-        cmds = _netbox_copy_vm(device)
-        personality = 'inventory'
-        if device.role:
-            personality = f'{device.role.slug}-{device.tenant.slug}'
-    else:
-        logging.error('Unsupported device type to copy "%s"', type(device))
-        sys.exit(1)
+        if isinstance(device, pynetbox.models.dcim.Devices):
+            cmds = self._netbox_copy_device(device)
+            personality = f'{device.device_role.slug}-{device.tenant.slug}'
+        elif isinstance(device, pynetbox.models.virtualization.VirtualMachines):
+            cmds = self._netbox_copy_vm(device)
+            personality = 'inventory'
+            if device.role:
+                personality = f'{device.role.slug}-{device.tenant.slug}'
+        else:
+            logging.error('Unsupported device type to copy "%s"', type(device))
+            sys.exit(1)
 
-    if not personality:
-        logging.error('Unable to determine personality of device "%s"', type(device))
-        sys.exit(1)
+        if not personality:
+            logging.error('Unable to determine personality of device "%s"', type(device))
+            sys.exit(1)
 
-    cmds.extend(_netbox_copy_interfaces(device))
+        cmds.extend(self._netbox_copy_interfaces(device))
 
-    # Finally add the host to the machine
-    cmds.append(' '.join([
-        'add_host',
-        f'--hostname {device.primary_ip.dns_name}',
-        f'--machine {device.aq_machine_name}',
-        f'--archetype {opts.archetype}',
-        f'--ip {device.primary_ip.address.split("/")[0]}',
-        f'--personality {personality}',
-        f'--{aqdesttype} {aqdestval}',
-        f'--osname {opts.osname}',
-        f'--osversion {opts.osvers}',
-    ]))
+        # Finally add the host to the machine
+        cmds.append(' '.join([
+            'add_host',
+            f'--hostname {device.primary_ip.dns_name}',
+            f'--machine {device.aq_machine_name}',
+            f'--archetype {opts.archetype}',
+            f'--ip {device.primary_ip.address.split("/")[0]}',
+            f'--personality {personality}',
+            f'--{aqdesttype} {aqdestval}',
+            f'--osname {opts.osname}',
+            f'--osversion {opts.osvers}',
+        ]))
 
-    # Add additional addresses to non-primary interfaces
-    cmds.extend(_netbox_copy_addresses(device))
+        # Add additional addresses to non-primary interfaces
+        cmds.extend(self._netbox_copy_addresses(device))
 
-    _call_aq(opts, cmds)
+        self._call_aq(opts, cmds)
 
 
 if __name__ == "__main__":
@@ -437,11 +297,13 @@ if __name__ == "__main__":
     if OPTS.debug:
         coloredlogs.set_level(logging.DEBUG)
 
+    netbox2aquilon = Netbox2Aquilon(CONFIG)
+
     # If domain or sandbox have not been provided, then see if the command is being run from sandbox,
     # if not, then use the domain configured as default.
     if not OPTS.domain and not OPTS.sandbox:
-        OPTS.sandbox = _get_current_sandbox()
+        OPTS.sandbox = netbox2aquilon.get_current_sandbox()
         if not OPTS.sandbox:
             OPTS.domain = CONFIG['aquilon']['domain']
 
-    _netbox_copy(OPTS)
+    netbox2aquilon.netbox_copy(OPTS)
