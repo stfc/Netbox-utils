@@ -14,25 +14,6 @@ import pynetbox
 
 from scd_netbox import SCDNetbox
 
-CONFIG = configparser.ConfigParser()
-CONFIG['netbox'] = {
-    'url': 'https://netbox.example.org/',
-    'cert_path': '',
-    'token': 'TOKEN',
-}
-CONFIG['aquilon'] = {
-    'archetype': 'ral-tier1',
-    'osname': 'rocky',
-    'osversion': '8x-x86_64',
-    'cli_path': '/opt/aquilon/bin/aq.py',
-    'domain': 'staging',
-    'cpuname': 'xeon_e5_2650v4',
-    'cpuspeed': '2200',
-}
-CONFIG.read([
-    '/var/quattor/etc/' + os.path.basename(__file__) + '.cfg',
-    os.path.expanduser('~/.netbox2aquilon.cfg'),
-])
 
 class Netbox2Aquilon(SCDNetbox):
     """ Extends base SCDNetbox class with aquilon specific functionality """
@@ -243,6 +224,26 @@ class Netbox2Aquilon(SCDNetbox):
 
 if __name__ == "__main__":
     logging.basicConfig(format='%(levelname)s: %(message)s')
+
+    CONFIG = configparser.ConfigParser()
+    CONFIG['netbox'] = {
+        'url': 'https://netbox.example.org/',
+        'cert_path': '',
+        'token': 'TOKEN',
+    }
+    CONFIG['aquilon'] = {
+        'archetype': 'ral-tier1',
+        'osname': 'rocky',
+        'osversion': '8x-x86_64',
+        'cli_path': '/opt/aquilon/bin/aq.py',
+        'domain': 'staging',
+        'cpuname': 'xeon_e5_2650v4',
+        'cpuspeed': '2200',
+    }
+    CONFIG.read([
+        '/var/quattor/etc/' + os.path.basename(__file__) + '.cfg',
+        os.path.expanduser('~/.netbox2aquilon.cfg'),
+    ])
 
     PARSER = argparse.ArgumentParser()
 
