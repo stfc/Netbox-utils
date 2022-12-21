@@ -169,7 +169,7 @@ class SCDNetbox():
                 ipv4_addresses.append(address)
             else:
                 logging.warning(
-                    "Interface %s has an address (%s) defined in NetBox with an unsupported family (%s) which was ignored",
+                    "Interface %s has an address (%s) in NetBox with an unsupported family (%s) which was ignored",
                     interface.name,
                     address.address,
                     address.family.label,
