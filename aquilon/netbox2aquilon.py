@@ -28,10 +28,10 @@ class Netbox2Aquilon(SCDNetbox):
             check=False,
         )
         if git_rev_parse.returncode == 0:
-            sandbox = b'/'.join([
-                os.path.basename(os.path.dirname(git_rev_parse.stdout)),
-                os.path.basename(git_rev_parse.stdout.strip()),
-            ]).decode('utf-8')
+            owner = os.path.basename(os.path.dirname(git_rev_parse.stdout))
+            name = os.path.basename(git_rev_parse.stdout.strip())
+            if owner and name:
+                sandbox = (owner + b'/' + name).decode('utf-8')
         return sandbox
 
     def _call_aq(self, opts, cmds):
