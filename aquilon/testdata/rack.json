@@ -1,0 +1,82 @@
+{
+  "id": 368,
+  "url": "http://netbox.example.org/api/dcim/racks/368/",
+  "display": "MagDB rack152 (152)",
+  "name": "MagDB rack152",
+  "facility_id": "152",
+  "site": {
+    "id": 3,
+    "url": "http://netbox.example.org/api/dcim/sites/3/",
+    "display": "B42 UPS",
+    "name": "B42 UPS",
+    "slug": "b42-ups"
+  },
+  "location": {
+    "id": 18,
+    "url": "http://netbox.example.org/api/dcim/locations/18/",
+    "display": "Row 4",
+    "name": "Row 4",
+    "slug": "row-4",
+    "_depth": 0
+  },
+  "tenant": {
+    "id": 7,
+    "url": "http://netbox.example.org/api/tenancy/tenants/7/",
+    "display": "Tier1",
+    "name": "Tier1",
+    "slug": "tier1"
+  },
+  "status": {
+    "value": "active",
+    "label": "Active"
+  },
+  "role": {
+    "id": 4,
+    "url": "http://netbox.example.org/api/dcim/rack-roles/4/",
+    "display": "Mixed",
+    "name": "Mixed",
+    "slug": "mixed"
+  },
+  "serial": "AB0123456789",
+  "asset_tag": null,
+  "type": {
+    "value": "4-post-cabinet",
+    "label": "4-post cabinet"
+  },
+  "width": {
+    "value": 19,
+    "label": "19 inches"
+  },
+  "u_height": 42,
+  "desc_units": false,
+  "outer_width": 600,
+  "outer_depth": 1070,
+  "outer_unit": {
+    "value": "mm",
+    "label": "Millimeters"
+  },
+  "comments": "Services 5",
+  "tags": [
+    {
+      "id": 39,
+      "url": "http://netbox.example.org/api/extras/tags/39/",
+      "display": "magdb2netbox",
+      "name": "magdb2netbox",
+      "slug": "magdb2netbox",
+      "color": "3f51b5"
+    }
+  ],
+  "custom_fields": {
+    "cf_rack_col": "4.500",
+    "cf_rack_row": "8.250",
+    "cf_rack_model": "APC AR3100",
+    "cleardate": "2018",
+    "enddate": "2020",
+    "installdate": "2012",
+    "Location": null
+  },
+  "created": "2022-11-16",
+  "last_updated": "2022-11-16T13:25:00.406946Z",
+  "device_count": 19,
+  "powerfeed_count": 0
+}

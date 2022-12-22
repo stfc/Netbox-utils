@@ -1,0 +1,60 @@
+[
+  {
+    "id": 13662,
+    "url": "http://netbox.example.org/api/ipam/ip-addresses/13662/?format=json",
+    "display": "2001:630:58:1800::ffa1/64",
+    "family": {
+      "value": 6,
+      "label": "IPv6"
+    },
+    "address": "fd42:2112:58:1800::ffa1/64",
+    "vrf": null,
+    "tenant": {
+      "id": 7,
+      "url": "http://netbox.example.org/api/tenancy/tenants/7/?format=json",
+      "display": "Tier1",
+      "name": "Tier1",
+      "slug": "tier1"
+    },
+    "status": {
+      "value": "active",
+      "label": "Active"
+    },
+    "role": null,
+    "assigned_object_type": "dcim.interface",
+    "assigned_object_id": 38917,
+    "assigned_object": {
+      "id": 38917,
+      "url": "http://netbox.example.org/api/dcim/interfaces/38917/?format=json",
+      "display": "vlan4093",
+      "device": {
+        "id": 8100,
+        "url": "http://netbox.example.org/api/dcim/devices/8100/?format=json",
+        "display": "system8912",
+        "name": "system8912"
+      },
+      "name": "vlan4093",
+      "cable": null,
+      "_occupied": false
+    },
+    "nat_inside": null,
+    "nat_outside": null,
+    "dns_name": "foo1-ip1800.example.org",
+    "description": "",
+    "tags": [
+      {
+        "id": 39,
+        "url": "http://netbox.example.org/api/extras/tags/39/?format=json",
+        "display": "magdb2netbox",
+        "name": "magdb2netbox",
+        "slug": "magdb2netbox",
+        "color": "3f51b5"
+      }
+    ],
+    "custom_fields": {
+      "cf_magdb_fqdn": null
+    },
+    "created": "2022-11-17",
+    "last_updated": "2022-11-24T15:04:37.294909Z"
+  }
+]
