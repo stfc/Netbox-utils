@@ -6,7 +6,7 @@ import argparse
 import logging
 import os.path
 
-from json import dump
+import json
 
 import coloredlogs
 
@@ -73,7 +73,7 @@ class NetboxDumpSubnetdata(SCDNetbox):
         """ Dump subnetdata field structure in JSON format """
         subnet_fields = self._get_subnet_fields()
         with open(os.path.join(directory, 'subnetdata.json'), 'w', encoding='utf-8') as dumpfile:
-            dump(subnet_fields, dumpfile)
+            json.dump(subnet_fields, dumpfile)
 
 
 def _main():

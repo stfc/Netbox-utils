@@ -25,6 +25,7 @@ def load_data():
         'interfaces_virtual': pynetbox.core.response.Record,
         'addresses_ipv4': pynetbox.models.ipam.IpAddresses,
         'addresses_ipv6': pynetbox.models.ipam.IpAddresses,
+        'prefixes_ipv4': pynetbox.models.ipam.Prefixes,
     }
 
     for name, model in files.items():
