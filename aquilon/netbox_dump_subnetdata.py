@@ -20,8 +20,9 @@ class NetboxDumpSubnetdata(SCDNetbox):
         results = []
         # Get all IPv4 prefixes for configured tenants
         # Aquilon doesn't support syncing IPv6 prefixes via this method
+        # We only want prefixes without child prefixes
         tenants = [t.strip() for t in self.config['dump_subnetdata']['tenants'].split(',')]
-        for prefix in self.netbox.ipam.prefixes.filter(tenant=tenants, family=4):
+        for prefix in self.netbox.ipam.prefixes.filter(tenant=tenants, family=4, children=0):
             fields = {
                 'UDF': {}
             }
