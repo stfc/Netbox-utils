@@ -18,7 +18,10 @@ class NetboxDumpSubnetdata(SCDNetbox):
 
     def _get_subnet_fields(self):
         results = []
-        for prefix in self.netbox.ipam.prefixes.filter(tenant_id=(7, 8, 31), family=4):
+        # Get all IPv4 prefixes for configured tenants
+        # Aquilon doesn't support syncing IPv6 prefixes via this method
+        tenants = [t.strip() for t in self.config['dump_subnetdata']['tenants'].split(',')]
+        for prefix in self.netbox.ipam.prefixes.filter(tenant=tenants, family=4):
             fields = {
                 'UDF': {}
             }
@@ -70,6 +73,11 @@ def _main():
     logging.basicConfig(format='%(levelname)s: %(message)s')
 
     netbox_dump_subnetdata = NetboxDumpSubnetdata()
+
+    if 'dump_subnetdata' not in netbox_dump_subnetdata.config:
+        netbox_dump_subnetdata.config['dump_subnetdata'] = {}
+    if 'tenants' not in netbox_dump_subnetdata.config['dump_subnetdata']:
+        netbox_dump_subnetdata.config['dump_subnetdata']['tenants'] = 'tier1,cloud,secops'
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
