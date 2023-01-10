@@ -132,7 +132,9 @@ class Netbox2Aquilon(SCDNetbox):
                 f'--mac {interface.mac_address}',
                 f'--interface {interface.name}',
                 # Valid values are: bonding, bridge, loopback, management, oa, physical, public, virtual, vlan
-                '--iftype management' if interface.mgmt_only else '',
+                # mgmt_only is only an attribute for physical devices
+                '--iftype management'
+                    if (isinstance(device, pynetbox.models.dcim.Devices) and interface.mgmt_only) else '',
             ])).strip())
 
             is_boot_interface = False
