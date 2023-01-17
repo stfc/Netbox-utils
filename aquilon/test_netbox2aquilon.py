@@ -47,6 +47,7 @@ def test_get_current_sandbox(mocker):
 def test__netbox_copy_interfaces(mocker):
     test_obj = Netbox2Aquilon()
 
+    # Physical devices with a management interface
     fake_device = SimpleNamespace(
         aq_machine_name='system7592',
     )
@@ -56,6 +57,17 @@ def test__netbox_copy_interfaces(mocker):
         'add_interface --machine system7592 --mac A1:B2:C3:D4:E5:DA --interface eth0',
         'add_interface --machine system7592 --mac A1:B2:C3:D4:E5:DB --interface eth1',
         'update_interface --machine system7592 --interface eth0 --boot',
+    }
+
+    # Virtual machine with two interfaces
+    fake_device = SimpleNamespace(
+        aq_machine_name='system6690',
+    )
+    test_obj.get_interfaces_from_device = mocker.MagicMock(return_value=deepcopy(FAKE.INTERFACES_VIRTUAL))
+    assert set(test_obj._netbox_copy_interfaces(fake_device)) == {
+        'add_interface --machine system6690 --mac A1:B2:C3:D4:E5:1B --interface eth0',
+        'add_interface --machine system6690 --mac A1:B2:C3:D4:E5:99 --interface eth1',
+        'update_interface --machine system6690 --interface eth0 --boot',
     }
 
 
