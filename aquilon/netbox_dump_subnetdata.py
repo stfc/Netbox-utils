@@ -15,6 +15,12 @@ from scd_netbox import SCDNetbox
 
 class NetboxDumpSubnetdata(SCDNetbox):
     """ Extends base SCDNetbox class with functionality to dump subnets to a file """
+    def __init__(self):
+        super().__init__()
+        if 'dump_subnetdata' not in self.config:
+            self.config['dump_subnetdata'] = {}
+        if 'tenants' not in self.config['dump_subnetdata']:
+            self.config['dump_subnetdata']['tenants'] = 'tier1,cloud,secops'
 
     def _get_subnet_fields(self):
         results = []
@@ -74,11 +80,6 @@ def _main():
     logging.basicConfig(format='%(levelname)s: %(message)s')
 
     netbox_dump_subnetdata = NetboxDumpSubnetdata()
-
-    if 'dump_subnetdata' not in netbox_dump_subnetdata.config:
-        netbox_dump_subnetdata.config['dump_subnetdata'] = {}
-    if 'tenants' not in netbox_dump_subnetdata.config['dump_subnetdata']:
-        netbox_dump_subnetdata.config['dump_subnetdata']['tenants'] = 'tier1,cloud,secops'
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
