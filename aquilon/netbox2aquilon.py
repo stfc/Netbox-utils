@@ -141,7 +141,7 @@ class Netbox2Aquilon(SCDNetbox):
                 # Valid values are: bonding, bridge, loopback, management, oa, physical, public, virtual, vlan
                 # mgmt_only is only an attribute for physical devices
                 '--iftype management'
-                    if (isinstance(device, pynetbox.models.dcim.Devices) and interface.mgmt_only) else '',
+                    if (hasattr(interface, 'mgmt_only') and interface.mgmt_only) else '',
             ])).strip())
 
             is_boot_interface = False
