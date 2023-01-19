@@ -12,12 +12,14 @@ https://github.com/netbox-community/netbox/issues/648
 from dcim.models import DeviceRole, Platform
 from django.core.exceptions import ObjectDoesNotExist
 from extras.models import Tag
+from extras.scripts import Script, StringVar, IPAddressWithMaskVar, ObjectVar
+from extras.scripts import MultiObjectVar, ChoiceVar, IntegerVar, TextVar
 from ipam.choices import IPAddressStatusChoices
 from ipam.models import IPAddress, VRF
 from tenancy.models import Tenant
 from virtualization.choices import VirtualMachineStatusChoices
 from virtualization.models import Cluster, VirtualMachine, VMInterface
-from extras.scripts import Script, StringVar, IPAddressWithMaskVar, ObjectVar, MultiObjectVar, ChoiceVar, IntegerVar, TextVar
+
 
 class NewVM(Script):
     class Meta:
