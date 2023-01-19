@@ -74,25 +74,25 @@ class NewVM(Script):
             if addr.version != family:
                 raise RuntimeError(f"Wrong family for {addr}")
             try:
-                a = IPAddress.objects.get(
+                ip_address = IPAddress.objects.get(
                     address=addr,
                 )
                 result = "Assigned"
             except ObjectDoesNotExist:
-                a = IPAddress(
+                ip_address = IPAddress(
                    address=addr,
                 )
                 result = "Created"
-            a.status = IPAddressStatusChoices.STATUS_ACTIVE
-            a.dns_name = data["dns_name"]
-            if a.assigned_object:
+            ip_address.status = IPAddressStatusChoices.STATUS_ACTIVE
+            ip_address.dns_name = data["dns_name"]
+            if ip_address.assigned_object:
                 raise RuntimeError(f"Address {addr} is already assigned")
-            a.assigned_object = vm_interface
-            a.tenant = data.get("tenant")
-            a.full_clean()
-            a.save()
-            self.log_info(f"{result} IP address {a.address} {a.vrf or ''}")
-            setattr(virtual_machine, f"primary_ip{family}", a)
+            ip_address.assigned_object = vm_interface
+            ip_address.tenant = data.get("tenant")
+            ip_address.full_clean()
+            ip_address.save()
+            self.log_info(f"{result} IP address {ip_address.address} {ip_address.vrf or ''}")
+            setattr(virtual_machine, f"primary_ip{family}", ip_address)
 
         add_addr(data["primary_ip4"], 4)
         add_addr(data["primary_ip6"], 6)
