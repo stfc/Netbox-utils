@@ -72,7 +72,7 @@ class NewVM(Script):
             if not addr:
                 return
             if addr.version != family:
-                raise RuntimeError(f"Wrong family for {a}")
+                raise RuntimeError(f"Wrong family for {addr}")
             try:
                 a = IPAddress.objects.get(
                     address=addr,
