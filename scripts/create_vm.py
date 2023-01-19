@@ -28,10 +28,7 @@ class NewVM(Script):
     dns_name = StringVar(label="DNS name", required=False)
     vm_tags = MultiObjectVar(model=Tag, label="VM tags", required=False)
     primary_ip4 = IPAddressWithMaskVar(label="IPv4 address")
-    #primary_ip4_tags = MultiObjectVar(model=Tag, label="IPv4 tags", required=False)
     primary_ip6 = IPAddressWithMaskVar(label="IPv6 address", required=False)
-    #primary_ip6_tags = MultiObjectVar(model=Tag, label="IPv6 tags", required=False)
-    #vrf = ObjectVar(model=VRF, required=False)
     role = ObjectVar(model=DeviceRole, query_params=dict(vm_role=True), required=False)
     status = ChoiceVar(VirtualMachineStatusChoices, default=VirtualMachineStatusChoices.STATUS_ACTIVE)
     cluster = ObjectVar(model=Cluster)
@@ -77,13 +74,11 @@ class NewVM(Script):
             try:
                 a = IPAddress.objects.get(
                     address=addr,
-                    vrf=data.get("vrf"),
                 )
                 result = "Assigned"
             except ObjectDoesNotExist:
                 a = IPAddress(
                    address=addr,
-                   vrf=data.get("vrf"),
                 )
                 result = "Created"
             a.status = IPAddressStatusChoices.STATUS_ACTIVE
@@ -94,7 +89,6 @@ class NewVM(Script):
             a.tenant = data.get("tenant")
             a.full_clean()
             a.save()
-            #a.tags.set(data[f"primary_ip{family}_tags"])
             self.log_info(f"{result} IP address {a.address} {a.vrf or ''}")
             setattr(vm, f"primary_ip{family}", a)
 
