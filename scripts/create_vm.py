@@ -15,7 +15,7 @@ from extras.models import Tag
 from extras.scripts import Script, StringVar, IPAddressWithMaskVar, ObjectVar
 from extras.scripts import MultiObjectVar, ChoiceVar, IntegerVar, TextVar
 from ipam.choices import IPAddressStatusChoices
-from ipam.models import IPAddress, VRF
+from ipam.models import IPAddress
 from tenancy.models import Tenant
 from virtualization.choices import VirtualMachineStatusChoices
 from virtualization.models import Cluster, VirtualMachine, VMInterface
