@@ -44,7 +44,7 @@ class NewVM(Script):
     comments = TextVar(label="Comments", required=False)
 
     def run(self, data, commit):  # pylint: disable=unused-argument
-        vm = VirtualMachine(
+        virtual_machine = VirtualMachine(
             name=data["vm_name"],
             role=data["role"],
             status=data["status"],
@@ -56,14 +56,14 @@ class NewVM(Script):
             comments=data["comments"],
             tenant=data.get("tenant"),
         )
-        vm.full_clean()
-        vm.save()
-        vm.tags.set(data["vm_tags"])
+        virtual_machine.full_clean()
+        virtual_machine.save()
+        virtual_machine.tags.set(data["vm_tags"])
 
         vminterface = VMInterface(
             name=data["interface_name"],
             mac_address=data["mac_address"],
-            virtual_machine=vm,
+            virtual_machine=virtual_machine,
         )
         vminterface.full_clean()
         vminterface.save()
@@ -92,10 +92,10 @@ class NewVM(Script):
             a.full_clean()
             a.save()
             self.log_info(f"{result} IP address {a.address} {a.vrf or ''}")
-            setattr(vm, f"primary_ip{family}", a)
+            setattr(virtual_machine, f"primary_ip{family}", a)
 
         add_addr(data["primary_ip4"], 4)
         add_addr(data["primary_ip6"], 6)
-        vm.full_clean()
-        vm.save()
-        self.log_success(f"Created VM [{vm.name}](/virtualization/virtual-machines/{vm.id}/)")
+        virtual_machine.full_clean()
+        virtual_machine.save()
+        self.log_success(f"Created VM [{virtual_machine.name}](/virtualization/virtual-machines/{virtual_machine.id}/)")
