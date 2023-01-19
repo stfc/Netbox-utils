@@ -7,6 +7,8 @@ https://github.com/netbox-community/netbox/issues/1492
 https://github.com/netbox-community/netbox/issues/648
 """
 
+# pylint: disable=missing-function-docstring,too-few-public-methods,import-error,missing-class-docstring
+
 from dcim.models import DeviceRole, Platform
 from django.core.exceptions import ObjectDoesNotExist
 from extras.models import Tag
