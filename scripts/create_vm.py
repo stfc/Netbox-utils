@@ -60,13 +60,13 @@ class NewVM(Script):
         virtual_machine.save()
         virtual_machine.tags.set(data["vm_tags"])
 
-        vminterface = VMInterface(
+        vm_interface = VMInterface(
             name=data["interface_name"],
             mac_address=data["mac_address"],
             virtual_machine=virtual_machine,
         )
-        vminterface.full_clean()
-        vminterface.save()
+        vm_interface.full_clean()
+        vm_interface.save()
 
         def add_addr(addr, family):
             if not addr:
@@ -87,7 +87,7 @@ class NewVM(Script):
             a.dns_name = data["dns_name"]
             if a.assigned_object:
                 raise RuntimeError(f"Address {addr} is already assigned")
-            a.assigned_object = vminterface
+            a.assigned_object = vm_interface
             a.tenant = data.get("tenant")
             a.full_clean()
             a.save()
