@@ -21,27 +21,63 @@ from virtualization.choices import VirtualMachineStatusChoices
 from virtualization.models import Cluster, VirtualMachine, VMInterface
 
 
+field_config = {
+    'dns_name': {'required': False},
+    'vm_tags': {'required': False},
+    'primary_ip4': {'required': False},
+    'primary_ip6': {'required': False},
+    'role': {'required': False},
+    'tenant': {'required': False},
+    'platform': {'required': False},
+    'interface_name': {'default': 'eth0'},
+    'mac_address': {'required': False},
+    'vcpus': {'required': False},
+    'memory': {'required': False},
+    'disk': {'required': False},
+    'comments': {'required': False},
+}
+
+# Allow the field configuration to be customised by a site specific YAML file
+# For example:
+# ---
+# dns_name:
+#    required: True
+#
+# interface_name:
+#     regex: '^eth[0-9]+$'
+# ---
+try:
+    field_config_custom = Script().load_yaml('create_vm.yaml')
+    if isinstance(field_config_custom, dict):
+        # Merge field configuration, but don't allow arbitrary fields to be added to the YAML file
+        for field_name, field_properties in field_config.items():
+            if field_name in field_config_custom:
+                field_properties.update(field_config_custom[field_name])
+except FileNotFoundError:
+    pass
+
+
 class NewVM(Script):
     class Meta:
         name = "New VM"
         description = "Create a new VM"
 
     vm_name = StringVar(label="VM name")
-    dns_name = StringVar(label="DNS name", required=False)
-    vm_tags = MultiObjectVar(model=Tag, label="VM tags", required=False)
-    primary_ip4 = IPAddressWithMaskVar(label="IPv4 address")
-    primary_ip6 = IPAddressWithMaskVar(label="IPv6 address", required=False)
-    role = ObjectVar(model=DeviceRole, query_params=dict(vm_role=True), required=False)
+    dns_name = StringVar(label="DNS name", **field_config['dns_name'])
+    vm_tags = MultiObjectVar(model=Tag, label="VM tags", **field_config['vm_tags'])
+    primary_ip4 = IPAddressWithMaskVar(label="IPv4 address", **field_config['primary_ip4'])
+    primary_ip6 = IPAddressWithMaskVar(label="IPv6 address", **field_config['primary_ip6'])
+    role = ObjectVar(model=DeviceRole, query_params=dict(vm_role=True), **field_config['role'])
     status = ChoiceVar(VirtualMachineStatusChoices, default=VirtualMachineStatusChoices.STATUS_ACTIVE)
     cluster = ObjectVar(model=Cluster)
-    tenant = ObjectVar(model=Tenant, required=False)
-    platform = ObjectVar(model=Platform, required=False)
-    interface_name = StringVar(default="eth0")
-    mac_address = StringVar(label="MAC address", required=False)
-    vcpus = IntegerVar(label="VCPUs", required=False)
-    memory = IntegerVar(label="Memory (MB)", required=False)
-    disk = IntegerVar(label="Disk (GB)", required=False)
-    comments = TextVar(label="Comments", required=False)
+    tenant = ObjectVar(model=Tenant, **field_config['tenant'])
+    platform = ObjectVar(model=Platform, **field_config['platform'])
+    interface_name = StringVar(**field_config['interface_name'])
+    mac_address = StringVar(label="MAC address", **field_config['mac_address'])
+    vcpus = IntegerVar(label="VCPUs", **field_config['vcpus'])
+    memory = IntegerVar(label="Memory (MB)", **field_config['memory'])
+    disk = IntegerVar(label="Disk (GB)", **field_config['disk'])
+    comments = TextVar(label="Comments", **field_config['comments'])
 
     def run(self, data, commit):  # pylint: disable=unused-argument
         virtual_machine = VirtualMachine(
