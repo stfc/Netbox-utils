@@ -98,6 +98,10 @@ class NewVM(Script):
             cls = cf_properties['type'].title() + 'Var'
             del cf_properties['type']
 
+        # Import any missing types
+        if cls not in globals():
+            globals()[cls] = getattr(__import__('extras.scripts', fromlist=['extras']), cls)
+
         vars()[f'cf_{cf_name}'] = globals()[cls](**cf_properties)
 
     comments = TextVar(label="Comments", **field_config['comments'])
