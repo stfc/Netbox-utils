@@ -35,6 +35,7 @@ field_config = {
     'memory': {'required': False},
     'disk': {'required': False},
     'comments': {'required': False},
+    'custom_fields': {},
 }
 
 # Allow the field configuration to be customised by a site specific YAML file
@@ -45,6 +46,17 @@ field_config = {
 #
 # interface_name:
 #     regex: '^eth[0-9]+$'
+# ---
+#
+# Custom fields can also be specified, type will default to String if not specified.
+# Any other valid arguments to the constructor can be provided.
+# For example:
+# ---
+# custom_fields:
+#     vmid:
+#         label: VM ID
+#         required: True
+#         regex: ^vm-[0-9]+$
 # ---
 try:
     field_config_custom = Script().load_yaml('create_vm.yaml')
@@ -77,6 +89,17 @@ class NewVM(Script):
     vcpus = IntegerVar(label="VCPUs", **field_config['vcpus'])
     memory = IntegerVar(label="Memory (MB)", **field_config['memory'])
     disk = IntegerVar(label="Disk (GB)", **field_config['disk'])
+
+    # Add custom fields
+    custom_fields = {}
+    for cf_name, cf_properties in field_config['custom_fields'].items():
+        cls = 'StringVar'
+        if 'type' in cf_properties:
+            cls = cf_properties['type'].title() + 'Var'
+            del cf_properties['type']
+
+        vars()[f'cf_{cf_name}'] = globals()[cls](**cf_properties)
+
     comments = TextVar(label="Comments", **field_config['comments'])
 
     def run(self, data, commit):  # pylint: disable=unused-argument
@@ -95,6 +118,9 @@ class NewVM(Script):
         virtual_machine.full_clean()
         virtual_machine.save()
         virtual_machine.tags.set(data["vm_tags"])
+
+        for cf_name in field_config['custom_fields']:
+            virtual_machine.custom_field_data[cf_name] = data[f'cf_{cf_name}']
 
         vm_interface = VMInterface(
             name=data["interface_name"],
