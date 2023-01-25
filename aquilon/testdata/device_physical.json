@@ -1,0 +1,109 @@
+{
+  "id": 5249,
+  "url": "http://netbox.example.org/api/dcim/devices/5249/",
+  "display": "system7592",
+  "name": "system7592",
+  "device_type": {
+    "id": 268,
+    "url": "http://netbox.example.org/api/dcim/device-types/268/",
+    "display": "dell-r430-2019-cloud-galera",
+    "manufacturer": {
+      "id": 3,
+      "url": "http://netbox.example.org/api/dcim/manufacturers/3/",
+      "display": "Dell",
+      "name": "Dell",
+      "slug": "dell"
+    },
+    "model": "dell-r430-2019-cloud-galera",
+    "slug": "dell-r430-2019-cloud-galera"
+  },
+  "device_role": {
+    "id": 8,
+    "url": "http://netbox.example.org/api/dcim/device-roles/8/",
+    "display": "Server",
+    "name": "Server",
+    "slug": "server"
+  },
+  "tenant": {
+    "id": 7,
+    "url": "http://netbox.example.org/api/tenancy/tenants/7/",
+    "display": "Tier1",
+    "name": "Tier1",
+    "slug": "tier1"
+  },
+  "platform": null,
+  "serial": "ABC1234",
+  "asset_tag": null,
+  "site": {
+    "id": 3,
+    "url": "http://netbox.example.org/api/dcim/sites/3/",
+    "display": "B42 UPS",
+    "name": "B42 UPS",
+    "slug": "b42-ups"
+  },
+  "location": {
+    "id": 18,
+    "url": "http://netbox.example.org/api/dcim/locations/18/",
+    "display": "Row 4",
+    "name": "Row 4",
+    "slug": "row-4",
+    "_depth": 0
+  },
+  "rack": {
+    "id": 368,
+    "url": "http://netbox.example.org/api/dcim/racks/368/",
+    "display": "MagDB rack152 (152)",
+    "name": "MagDB rack152"
+  },
+  "position": 9,
+  "face": {
+    "value": "front",
+    "label": "Front"
+  },
+  "parent_device": null,
+  "status": {
+    "value": "active",
+    "label": "Active"
+  },
+  "primary_ip": {
+    "id": 10201,
+    "url": "http://netbox.example.org/api/ipam/ip-addresses/10201/",
+    "display": "192.168.180.11/22",
+    "family": 4,
+    "address": "192.168.180.11/22"
+  },
+  "primary_ip4": {
+    "id": 10201,
+    "url": "http://netbox.example.org/api/ipam/ip-addresses/10201/",
+    "display": "192.168.180.11/22",
+    "family": 4,
+    "address": "192.168.180.11/22"
+  },
+  "primary_ip6": null,
+  "cluster": null,
+  "virtual_chassis": null,
+  "vc_position": null,
+  "vc_priority": null,
+  "comments": "",
+  "local_context_data": null,
+  "tags": [
+    {
+      "id": 39,
+      "url": "http://netbox.example.org/api/extras/tags/39/",
+      "display": "magdb2netbox",
+      "name": "magdb2netbox",
+      "slug": "magdb2netbox",
+      "color": "3f51b5"
+    }
+  ],
+  "custom_fields": {
+    "librenms_id": null,
+    "magdb_system_id": 7592,
+    "maintenance_end": null,
+    "maintenance_id": null,
+    "mfgdate": null
+  },
+  "config_context": {},
+  "created": "2022-11-16",
+  "last_updated": "2022-11-16T19:19:05.353025Z"
+}

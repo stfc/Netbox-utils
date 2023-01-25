@@ -1,0 +1,118 @@
+[
+  {
+    "id": 10201,
+    "url": "http://netbox.example.org/api/ipam/ip-addresses/10201/",
+    "display": "192.168.180.11/22",
+    "family": {
+      "value": 4,
+      "label": "IPv4"
+    },
+    "address": "192.168.180.11/22",
+    "vrf": null,
+    "tenant": {
+      "id": 7,
+      "url": "http://netbox.example.org/api/tenancy/tenants/7/",
+      "display": "Tier1",
+      "name": "Tier1",
+      "slug": "tier1"
+    },
+    "status": {
+      "value": "active",
+      "label": "Active"
+    },
+    "role": null,
+    "assigned_object_type": "dcim.interface",
+    "assigned_object_id": 34624,
+    "assigned_object": {
+      "id": 34624,
+      "url": "http://netbox.example.org/api/dcim/interfaces/34624/",
+      "display": "eth0",
+      "device": {
+        "id": 5249,
+        "url": "http://netbox.example.org/api/dcim/devices/5249/",
+        "display": "system7592",
+        "name": "system7592"
+      },
+      "name": "eth0",
+      "cable": null,
+      "_occupied": false
+    },
+    "nat_inside": null,
+    "nat_outside": null,
+    "dns_name": "aqfe-1.example.org",
+    "description": "",
+    "tags": [
+      {
+        "id": 39,
+        "url": "http://netbox.example.org/api/extras/tags/39/",
+        "display": "magdb2netbox",
+        "name": "magdb2netbox",
+        "slug": "magdb2netbox",
+        "color": "3f51b5"
+      }
+    ],
+    "custom_fields": {
+      "cf_magdb_fqdn": null
+    },
+    "created": "2022-11-16",
+    "last_updated": "2022-11-16T19:19:05.100153Z"
+  },
+  {
+    "id": 10200,
+    "url": "http://netbox.example.org/api/ipam/ip-addresses/10200/",
+    "display": "192.168.180.13/22",
+    "family": {
+      "value": 4,
+      "label": "IPv4"
+    },
+    "address": "192.168.180.13/22",
+    "vrf": null,
+    "tenant": {
+      "id": 7,
+      "url": "http://netbox.example.org/api/tenancy/tenants/7/",
+      "display": "Tier1",
+      "name": "Tier1",
+      "slug": "tier1"
+    },
+    "status": {
+      "value": "active",
+      "label": "Active"
+    },
+    "role": null,
+    "assigned_object_type": "dcim.interface",
+    "assigned_object_id": 34624,
+    "assigned_object": {
+      "id": 34624,
+      "url": "http://netbox.example.org/api/dcim/interfaces/34624/",
+      "display": "eth0",
+      "device": {
+        "id": 5249,
+        "url": "http://netbox.example.org/api/dcim/devices/5249/",
+        "display": "system7592",
+        "name": "system7592"
+      },
+      "name": "eth0",
+      "cable": null,
+      "_occupied": false
+    },
+    "nat_inside": null,
+    "nat_outside": null,
+    "dns_name": "aquilon.example.org",
+    "description": "",
+    "tags": [
+      {
+        "id": 39,
+        "url": "http://netbox.example.org/api/extras/tags/39/",
+        "display": "magdb2netbox",
+        "name": "magdb2netbox",
+        "slug": "magdb2netbox",
+        "color": "3f51b5"
+      }
+    ],
+    "custom_fields": {
+      "cf_magdb_fqdn": null
+    },
+    "created": "2022-11-16",
+    "last_updated": "2022-11-24T15:04:13.873063Z"
+  }
+]

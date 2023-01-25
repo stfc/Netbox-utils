@@ -1,0 +1,68 @@
+{
+  "id": 763,
+  "url": "http://netbox.example.org/api/virtualization/virtual-machines/763/",
+  "display": "system6690",
+  "name": "system6690",
+  "status": {
+    "value": "active",
+    "label": "Active"
+  },
+  "site": {
+    "id": 3,
+    "url": "http://netbox.example.org/api/dcim/sites/3/",
+    "display": "B42 UPS",
+    "name": "B42 UPS",
+    "slug": "b42-ups"
+  },
+  "cluster": {
+    "id": 10,
+    "url": "http://netbox.example.org/api/virtualization/clusters/10/",
+    "display": "Tier1 Cluster",
+    "name": "Tier1 Cluster"
+  },
+  "role": null,
+  "tenant": {
+    "id": 7,
+    "url": "http://netbox.example.org/api/tenancy/tenants/7/",
+    "display": "Tier1",
+    "name": "Tier1",
+    "slug": "tier1"
+  },
+  "platform": null,
+  "primary_ip": {
+    "id": 19781,
+    "url": "http://netbox.example.org/api/ipam/ip-addresses/19781/",
+    "display": "192.168.180.108/22",
+    "family": 4,
+    "address": "192.168.180.108/22"
+  },
+  "primary_ip4": {
+    "id": 19781,
+    "url": "http://netbox.example.org/api/ipam/ip-addresses/19781/",
+    "display": "192.168.180.108/22",
+    "family": 4,
+    "address": "192.168.180.108/22"
+  },
+  "primary_ip6": null,
+  "vcpus": null,
+  "memory": null,
+  "disk": null,
+  "comments": "",
+  "local_context_data": null,
+  "tags": [
+    {
+      "id": 39,
+      "url": "http://netbox.example.org/api/extras/tags/39/",
+      "display": "magdb2netbox",
+      "name": "magdb2netbox",
+      "slug": "magdb2netbox",
+      "color": "3f51b5"
+    }
+  ],
+  "custom_fields": {
+    "magdb_system_id": 6690
+  },
+  "config_context": {},
+  "created": "2022-11-21",
+  "last_updated": "2022-11-21T18:03:00.351587Z"
+}

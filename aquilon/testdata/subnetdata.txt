@@ -1,0 +1,7 @@
+SubnetAddress 10.246.176.0	SubnetMask 22	SubnetName t1-private-echo	UDF TYPE=Private
+SubnetAddress 192.168.80.0	SubnetMask 22	SubnetName is-cloud	UDF TYPE=WAN
+SubnetAddress 192.168.176.0	SubnetMask 22	SubnetName public-opn	UDF TYPE=OPN
+SubnetAddress 192.168.216.64	SubnetMask 27	SubnetName abc-public-leaf-1	UDF TYPE=Leaf
+SubnetAddress 10.6.0.0	SubnetMask 16	SubnetName man-reserved	UDF TYPE=Private;VRF=t1_management
+SubnetAddress 192.168.232.0	SubnetMask 24	SubnetName quattor-builds	UDF VRF=SCD Cloud
+SubnetAddress 172.16.254.0	SubnetMask 26	SubnetName Tape libraries	UDF TYPE=Private;LOCATION=B42 LPD

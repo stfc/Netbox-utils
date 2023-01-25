@@ -1,4 +1,4 @@
-name: Lint
+name: Unit Tests
 
 on: [push, pull_request]
 
@@ -21,6 +21,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r test_requirements.txt
-    - name: Analysing any changed code with pylint
+    - name: Running unit tests with pytest
       run: |
-        find . -type f -name '*.py' | xargs -r pylint --max-line-length=120
+        cd aquilon/ && pytest -vv
