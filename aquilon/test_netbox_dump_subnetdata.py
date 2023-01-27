@@ -24,15 +24,13 @@ def test__get_subnet_fields(mocker):
     test_obj.netbox.ipam.prefixes.filter = mocker.MagicMock(return_value=deepcopy(FAKE.PREFIXES_IPV4))
 
     subnets = test_obj._get_subnet_fields()
-    assert len(subnets) == 7
+    assert len(subnets) == 5
     print(subnets)
     assert {s['SubnetAddress'] for s in subnets} == {
         "10.246.176.0",
-        "10.6.0.0",
         "172.16.254.0",
         "192.168.176.0",
         "192.168.216.64",
-        "192.168.232.0",
         "192.168.80.0",
     }
 

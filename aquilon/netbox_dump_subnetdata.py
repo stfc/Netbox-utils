@@ -27,8 +27,9 @@ class NetboxDumpSubnetdata(SCDNetbox):
         # Get all IPv4 prefixes for configured tenants
         # Aquilon doesn't support syncing IPv6 prefixes via this method
         # We only want prefixes without child prefixes
+        # Only synchronise the Global VRF which corresponds to the aquilon "internal" network environment
         tenants = [t.strip() for t in self.config['dump_subnetdata']['tenants'].split(',')]
-        for prefix in self.netbox.ipam.prefixes.filter(tenant=tenants, family=4, children=0):
+        for prefix in self.netbox.ipam.prefixes.filter(tenant=tenants, family=4, children=0, vrf_id=None):
             fields = {
                 'UDF': {}
             }
@@ -40,8 +41,6 @@ class NetboxDumpSubnetdata(SCDNetbox):
                 fields['UDF']['TYPE'] = prefix.role.name
             if prefix.site:
                 fields['UDF']['LOCATION'] = prefix.site.name
-            if prefix.vrf:
-                fields['UDF']['VRF'] = prefix.vrf.name
 
             if not fields['UDF']:
                 del fields['UDF']
