@@ -193,7 +193,9 @@
     "mark_utilized": false,
     "description": "Tape libraries",
     "tags": [],
-    "custom_fields": {},
+    "custom_fields": {
+      "aq_name": "t1-private-tape-libraries"
+    },
     "created": "2021-02-16",
     "last_updated": "2021-02-16T17:48:24.795602Z",
     "children": 0,

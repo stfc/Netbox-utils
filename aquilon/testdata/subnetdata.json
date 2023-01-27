@@ -38,6 +38,6 @@
     },
     "SubnetAddress": "172.16.254.0",
     "SubnetMask": "26",
-    "SubnetName": "Tape libraries"
+    "SubnetName": "t1-private-tape-libraries"
   }
 ]

@@ -30,13 +30,17 @@ class NetboxDumpSubnetdata(SCDNetbox):
         # Only synchronise the Global VRF which corresponds to the aquilon "internal" network environment
         tenants = [t.strip() for t in self.config['dump_subnetdata']['tenants'].split(',')]
         for prefix in self.netbox.ipam.prefixes.filter(tenant=tenants, family=4, children=0, vrf_id=None):
+            subnet_name = prefix.description
+            if 'aq_name' in prefix.custom_fields and prefix.custom_fields['aq_name']:
+                subnet_name = prefix.custom_fields['aq_name']
+
             fields = {
                 'UDF': {}
             }
             address, mask = prefix.prefix.split('/', 2)
             fields['SubnetAddress'] = address
             fields['SubnetMask'] = mask
-            fields['SubnetName'] = prefix.description
+            fields['SubnetName'] = subnet_name
             if prefix.role:
                 fields['UDF']['TYPE'] = prefix.role.name
             if prefix.site:
