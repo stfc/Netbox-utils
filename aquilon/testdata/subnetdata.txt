@@ -1,5 +1,5 @@
 SubnetAddress 10.246.176.0	SubnetMask 22	SubnetName t1-private-echo	UDF TYPE=private
 SubnetAddress 192.168.80.0	SubnetMask 22	SubnetName is-cloud	UDF TYPE=wan
 SubnetAddress 192.168.176.0	SubnetMask 22	SubnetName public-opn	UDF TYPE=opn
-SubnetAddress 192.168.216.64	SubnetMask 27	SubnetName abc-public-leaf-1	UDF TYPE=clos-leaf
+DefaultRouters 192.168.216.65	SubnetAddress 192.168.216.64	SubnetMask 27	SubnetName abc-public-leaf-1	UDF TYPE=clos-leaf
 SubnetAddress 172.16.254.0	SubnetMask 26	SubnetName t1-private-tape-libraries	UDF TYPE=private;LOCATION=B42 LPD

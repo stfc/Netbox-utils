@@ -29,7 +29,8 @@
     },
     "SubnetAddress": "192.168.216.64",
     "SubnetMask": "27",
-    "SubnetName": "abc-public-leaf-1"
+    "SubnetName": "abc-public-leaf-1",
+    "DefaultRouters": "192.168.216.65"
   },
   {
     "UDF": {

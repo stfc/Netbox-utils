@@ -45,6 +45,10 @@ class NetboxDumpSubnetdata(SCDNetbox):
                 fields['UDF']['TYPE'] = prefix.role.slug
             if prefix.site:
                 fields['UDF']['LOCATION'] = prefix.site.name
+            if 'gateway_ip' in prefix.custom_fields and prefix.custom_fields['gateway_ip']:
+                gateway_ip = prefix.custom_fields['gateway_ip']['address'].split('/', 2)[0]
+                fields['DefaultRouters'] = gateway_ip
+
 
             if not fields['UDF']:
                 del fields['UDF']

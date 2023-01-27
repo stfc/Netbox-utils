@@ -153,7 +153,16 @@
     "mark_utilized": false,
     "description": "abc-public-leaf-1",
     "tags": [],
-    "custom_fields": {},
+    "custom_fields": {
+        "aq_name": null,
+        "gateway_ip": {
+            "id": 20476,
+            "url": "https://netbox.example.org/api/ipam/ip-addresses/20476/",
+            "display": "192.168.216.65/27",
+            "family": 4,
+            "address": "192.168.216.65/27"
+        }
+    },
     "created": "2022-12-20",
     "last_updated": "2022-12-20T12:23:18.071853Z",
     "children": 0,
