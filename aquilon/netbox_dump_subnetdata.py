@@ -42,7 +42,7 @@ class NetboxDumpSubnetdata(SCDNetbox):
             fields['SubnetMask'] = mask
             fields['SubnetName'] = subnet_name
             if prefix.role:
-                fields['UDF']['TYPE'] = prefix.role.name
+                fields['UDF']['TYPE'] = prefix.role.slug
             if prefix.site:
                 fields['UDF']['LOCATION'] = prefix.site.name
 
