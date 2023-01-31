@@ -133,6 +133,11 @@ class Netbox2Aquilon(SCDNetbox):
         cmds = []
         interfaces = self.get_interfaces_from_device(device)
         for interface in interfaces:
+            is_boot_interface = False
+            for tag in interface.tags:
+                if tag.slug == 'bootable':
+                    is_boot_interface = True
+
             cmds.append((' '.join([
                 'add_interface',
                 f'--machine {device.aq_machine_name}',
@@ -141,13 +146,9 @@ class Netbox2Aquilon(SCDNetbox):
                 # Valid values are: bonding, bridge, loopback, management, oa, physical, public, virtual, vlan
                 # mgmt_only is only an attribute for physical devices
                 '--iftype management'
-                    if (hasattr(interface, 'mgmt_only') and interface.mgmt_only) else '',
+                    if (hasattr(interface, 'mgmt_only') and interface.mgmt_only and not is_boot_interface) else '',
             ])).strip())
 
-            is_boot_interface = False
-            for tag in interface.tags:
-                if tag.slug == 'bootable':
-                    is_boot_interface = True
 
             if is_boot_interface:
                 cmds.append(' '.join([
