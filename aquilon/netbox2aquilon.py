@@ -281,7 +281,7 @@ def _main():
         ),
     )
     parser.add_argument(
-        "--osvers", default=netbox2aquilon.config['aquilon']['osversion'],
+        "--osversion", default=netbox2aquilon.config['aquilon']['osversion'],
         help=(
             "Version of the Operating system on the host. Default: " +
             netbox2aquilon.config['aquilon']['osversion']
