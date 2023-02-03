@@ -54,6 +54,13 @@ class Netbox2Aquilon(SCDNetbox):
                 process.returncode,
             )
             return process.returncode
+        if not process.stdout and not process.stderr:
+            logging.debug(
+                'Commmand %s %s returned no data',
+                self.config['aquilon']['cli_path'],
+                cmd,
+            )
+            return -1
         return 0
 
     def _call_aq_cmds(self, cmds, dryrun=False):
@@ -62,7 +69,9 @@ class Netbox2Aquilon(SCDNetbox):
                 print('aq ' + cmd)
             else:
                 retval = self._call_aq(cmd)
-                return retval
+                if retval > 0:
+                    return retval
+        return 0
 
     def _netbox_get_device(self, opts):
         if opts.magdb_id:
