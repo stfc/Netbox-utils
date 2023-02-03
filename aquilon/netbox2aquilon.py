@@ -47,7 +47,7 @@ class Netbox2Aquilon(SCDNetbox):
                         cmd,
                         retval,
                     )
-                    sys.exit(1)
+                return retval
 
     def _netbox_get_device(self, opts):
         if opts.magdb_id:
@@ -232,7 +232,7 @@ class Netbox2Aquilon(SCDNetbox):
         # Add additional addresses to non-primary interfaces
         cmds.extend(self._netbox_copy_addresses(device))
 
-        self._call_aq(opts, cmds)
+        sys.exit(self._call_aq(opts, cmds))
 
 
 def _main():
