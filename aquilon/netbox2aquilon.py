@@ -41,6 +41,11 @@ class Netbox2Aquilon(SCDNetbox):
             stderr=subprocess.PIPE,
             check=False,
         )
+        logging.debug(
+            'Calling %s %s',
+            self.config['aquilon']['cli_path'],
+            cmd,
+        )
         if process.returncode != 0:
             logging.error(
                 'Commmand %s %s exited with error code %d',
