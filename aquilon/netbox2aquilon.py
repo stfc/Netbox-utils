@@ -34,19 +34,29 @@ class Netbox2Aquilon(SCDNetbox):
                 sandbox = (owner + b'/' + name).decode('utf-8')
         return sandbox
 
-    def _call_aq(self, opts, cmds):
+    def _call_aq(self, cmd):
+        process = subprocess.run(
+            [self.config['aquilon']['cli_path']]+cmd.split(' '),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        if process.returncode != 0:
+            logging.error(
+                'Commmand %s %s exited with error code %d',
+                self.config['aquilon']['cli_path'],
+                cmd,
+                process.returncode,
+            )
+            return process.returncode
+        return 0
+
+    def _call_aq_cmds(self, cmds, dryrun=False):
         for cmd in cmds:
-            if opts.dryrun:
+            if dryrun:
                 print('aq ' + cmd)
             else:
-                retval = subprocess.call([self.config['aquilon']['cli_path']]+cmd.split(' '))
-                if retval != 0:
-                    logging.error(
-                        'Commmand %s %s exited with error code %d',
-                        self.config['aquilon']['cli_path'],
-                        cmd,
-                        retval,
-                    )
+                retval = self._call_aq(cmd)
                 return retval
 
     def _netbox_get_device(self, opts):
@@ -232,7 +242,7 @@ class Netbox2Aquilon(SCDNetbox):
         # Add additional addresses to non-primary interfaces
         cmds.extend(self._netbox_copy_addresses(device))
 
-        sys.exit(self._call_aq(opts, cmds))
+        sys.exit(self._call_aq_cmds(cmds, dryrun=opts.dryrun))
 
 
 def _main():
