@@ -234,6 +234,11 @@ class Netbox2Aquilon(SCDNetbox):
             logging.error('Unsupported device type to copy "%s"', type(device))
             sys.exit(1)
 
+        # Fall back to inventory personality if specific personality can't be found
+        if self._call_aq(f'search_personality --personality {personality}') < 0:
+            logging.info('Personality "%s" not found, falling back to "inventory"', personality)
+            personality = 'inventory'
+
         if not personality:
             logging.error('Unable to determine personality of device "%s"', type(device))
             sys.exit(1)
