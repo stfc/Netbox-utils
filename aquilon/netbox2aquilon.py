@@ -226,7 +226,7 @@ class Netbox2Aquilon(SCDNetbox):
             f'--personality {personality}',
             f'--{aqdesttype} {aqdestval}',
             f'--osname {opts.osname}',
-            f'--osversion {opts.osvers}',
+            f'--osversion {opts.osversion}',
         ]))
 
         # Add additional addresses to non-primary interfaces
