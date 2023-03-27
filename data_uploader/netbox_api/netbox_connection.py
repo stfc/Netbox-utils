@@ -22,10 +22,7 @@ class NetboxApi:
                 "A token is required but not provided."
             )
         session = requests.Session()
-        if not cert:
-            session.verify = False
-        else:
-            session.verify = cert
+        session.verify = cert if cert else False
 
         connection = api(url=netbox_url, token=token)
         connection.http_session = session
