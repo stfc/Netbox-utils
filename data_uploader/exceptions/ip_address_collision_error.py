@@ -1,0 +1,2 @@
+class IPAddressCollisionError(ValueError):
+    pass
