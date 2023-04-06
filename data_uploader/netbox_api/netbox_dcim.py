@@ -1,8 +1,7 @@
-from ctypes import Union
-from xmlrpc.client import Boolean
+from typing import Union
 from data_uploader.exceptions.mac_address_collision_error import MacAddressCollisionError
 from data_uploader.netbox_api.netbox_base import NetboxBase
-from pynetbox.core.api import Record
+from pynetbox.core.response import Record
 
 
 class NetboxDcim(NetboxBase):
@@ -18,7 +17,7 @@ class NetboxDcim(NetboxBase):
         :param hostname: name of the server to search for in Netbox
         :return: dict of record in netbox or None if not found
         """
-
+        self._netbox_api.dcim.devices.get(name=hostname)
         return self._netbox_api.dcim.devices.get(name=hostname)
 
     def get_device_types(self, model: str) -> Union[Record, None]:
@@ -36,21 +35,19 @@ class NetboxDcim(NetboxBase):
         :param interface_name: Name of interface to search for
         :param hostname: Name of device the interface is attached to
         """
-
         return self._netbox_api.dcim.interfaces.get(name=interface_name, device=hostname)
 
-    def find_mac_addr(self, mac_address: str) -> Boolean:
+    def find_mac_addr(self, mac_address: str) -> bool:
         """
         Checks whether there is an interface in Netbox that already uses a specific mac address
         :param mac_address: mac address to search Netbox for
         :returns: Boolean indicating whether an interface with that address exists (True) or not (False)
         """
         check = self._netbox_api.interface.get(mac_address=mac_address)
-
         return True if check else False
 
     def create_device(self, hostname: str, site: str, location: str, tenant: str, manufacturer: str,
-                      rack: str, rack_position: int, device_type:str, serial_no: str) -> Record:
+                      rack: str, rack_position: int, device_type: str, serial_no: str) -> Record:
         """
         Create a new device in NetBox.
 
@@ -67,7 +64,6 @@ class NetboxDcim(NetboxBase):
         :return: Netbox Record object
         """
         netbox = self._netbox_api
-
         netbox_device = netbox.dcim.devices.create(
             name=hostname,
             site=netbox.dcim.devices.get(name=site).id,
@@ -82,7 +78,7 @@ class NetboxDcim(NetboxBase):
         )
         return netbox_device
 
-    def create_device_type(self, model: str, manufacturer: str, slug: str, unit_height: int) -> None:
+    def create_device_type(self, model: str, manufacturer: str, slug: str, unit_height: int) -> Record:
         """
         Create a new device type in NetBox
         :param model: Name of device type
@@ -93,15 +89,11 @@ class NetboxDcim(NetboxBase):
         :return: Netbox record of new device type
         """
         netbox = self._netbox_api
-
         new_device_type = netbox.dcim.device_types.create(
-            manufacturer=netbox.dcim.manufacturers.get(name="manufacturer-name").id,
-            model="device-type-name",
-            slug="device-type-slug",
-            subdevice_role='child or parent',
-            # optional field - required if creating a device type to be used for a child device
+            manufacturer=netbox.dcim.manufacturers.get(name=manufacturer).id,
+            model=model,
+            slug=slug,
             u_height=unit_height,
-            # Can only equal 0 if the device type is for a child device - requires subdevice_role='child' if that is the case
         #    custom_fields={'cf_1': 'Custom data 1'}  # optional field
         )
         return new_device_type
@@ -115,11 +107,10 @@ class NetboxDcim(NetboxBase):
         :param interface_type: interface type
         :param description: description
         :param mac_address: mac_address
-        :return:
+        :return: netbox_interface: Record object with details of newly created netbox interface
         """
-
         # verify whether the mac address already exists in Netbox on a specific interface
-        mac_addr_match = NetboxDcim.find_mac_addr(mac_address)
+        mac_addr_match = NetboxDcim.find_mac_addr(self, mac_address)
 
         if mac_addr_match:
             raise MacAddressCollisionError(
