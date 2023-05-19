@@ -87,10 +87,10 @@ class SCDNetbox():
         # unfortunately the property will return a pynetbox.core.response.Record object,
         # so we need to use the id to obtain the "real" object and preserve the type.
         if ip_address.assigned_object_type == 'dcim.interface':
-            logging.debug("IP %s is assigned to a physical interface")
+            logging.debug("IP %s is assigned to a physical interface", ip_address)
             device = self.netbox.dcim.devices.get(ip_address.assigned_object.device.id)
         elif ip_address.assigned_object_type == 'virtualization.vminterface':
-            logging.debug("IP %s is assigned to a virtual machine interface")
+            logging.debug("IP %s is assigned to a virtual machine interface", ip_address)
             device = self.netbox.virtualization.virtual_machines.get(ip_address.assigned_object.virtual_machine.id)
         else:
             logging.error("Unknown assigned_object_type %s for IP %s", ip_address.assigned_object_type, ip_address)
