@@ -35,6 +35,11 @@ class Netbox2Aquilon(SCDNetbox):
         return sandbox
 
     def _call_aq(self, cmd):
+        logging.debug(
+            'Calling %s %s',
+            self.config['aquilon']['cli_path'],
+            cmd,
+        )
         process = subprocess.run(
             [self.config['aquilon']['cli_path']]+cmd.split(' '),
             stdout=subprocess.PIPE,
@@ -42,18 +47,11 @@ class Netbox2Aquilon(SCDNetbox):
             check=False,
         )
         logging.debug(
-            'Calling %s %s',
+            'Commmand %s %s exited with code %d',
             self.config['aquilon']['cli_path'],
             cmd,
+            process.returncode,
         )
-        if process.returncode != 0:
-            logging.error(
-                'Commmand %s %s exited with error code %d',
-                self.config['aquilon']['cli_path'],
-                cmd,
-                process.returncode,
-            )
-            return process.returncode
         if not process.stdout and not process.stderr:
             logging.debug(
                 'Commmand %s %s returned no data',
@@ -61,7 +59,7 @@ class Netbox2Aquilon(SCDNetbox):
                 cmd,
             )
             return -1
-        return 0
+        return process.returncode
 
     def _call_aq_cmds(self, cmds, dryrun=False):
         for cmd in cmds:
@@ -70,6 +68,12 @@ class Netbox2Aquilon(SCDNetbox):
             else:
                 retval = self._call_aq(cmd)
                 if retval > 0:
+                    logging.error(
+                        'Commmand %s %s exited with error code %d',
+                        self.config['aquilon']['cli_path'],
+                        cmd,
+                        retval,
+                    )
                     return retval
         return 0
 
@@ -235,7 +239,7 @@ class Netbox2Aquilon(SCDNetbox):
             sys.exit(1)
 
         # Fall back to inventory personality if specific personality can't be found
-        if self._call_aq(f'search_personality --personality {personality}') < 0:
+        if self._call_aq(f'show_personality --archetype {opts.archetype} --personality {personality}') != 0:
             logging.info('Personality "%s" not found, falling back to "inventory"', personality)
             personality = 'inventory'
 
