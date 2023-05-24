@@ -83,24 +83,24 @@ def test_get_device_by_hostname(mocker):
     scd_netbox.netbox.virtualization.virtual_machines = SimpleNamespace()
 
     # Test a physical interface
-    scd_netbox.netbox.ipam.ip_addresses.get = mocker.MagicMock(return_value=deepcopy(fake_address_physical))
+    scd_netbox.netbox.ipam.ip_addresses.filter = mocker.MagicMock(return_value=[deepcopy(fake_address_physical)])
     scd_netbox.netbox.dcim.devices.get = mocker.MagicMock(return_value=deepcopy(FAKE.DEVICE_PHYSICAL))
     assert FAKE.DEVICE_PHYSICAL == FAKE.DEVICE_PHYSICAL
     assert FAKE.DEVICE_PHYSICAL == scd_netbox.get_device_by_hostname('foo.example.org')
-    scd_netbox.netbox.ipam.ip_addresses.get.assert_called_with(dns_name='foo.example.org')
+    scd_netbox.netbox.ipam.ip_addresses.filter.assert_called_with(dns_name='foo.example.org', family=4)
     scd_netbox.netbox.dcim.devices.get.assert_called_with(277636)
 
     # Test a virtual interface
-    scd_netbox.netbox.ipam.ip_addresses.get = mocker.MagicMock(return_value=deepcopy(fake_address_virtual))
+    scd_netbox.netbox.ipam.ip_addresses.filter = mocker.MagicMock(return_value=[deepcopy(fake_address_virtual)])
     scd_netbox.netbox.virtualization.virtual_machines.get = mocker.MagicMock(return_value=deepcopy(FAKE.DEVICE_VIRTUAL))
     assert FAKE.DEVICE_VIRTUAL == scd_netbox.get_device_by_hostname('bar.example.org')
-    scd_netbox.netbox.ipam.ip_addresses.get.assert_called_with(dns_name='bar.example.org')
+    scd_netbox.netbox.ipam.ip_addresses.filter.assert_called_with(dns_name='bar.example.org', family=4)
     scd_netbox.netbox.virtualization.virtual_machines.get.assert_called_with(6465)
 
     # Should log an error and exit if an unknown type is found
     scd_netbox = SCDNetbox()
     scd_netbox.netbox.ipam.ip_addresses = SimpleNamespace()
-    scd_netbox.netbox.ipam.ip_addresses.get = mocker.MagicMock(return_value=fake_address_garbage)
+    scd_netbox.netbox.ipam.ip_addresses.filter = mocker.MagicMock(return_value=[fake_address_garbage])
     mocked_error = mocker.patch.object(logging, 'error')
     with pytest.raises(SystemExit):
         scd_netbox.get_device_by_hostname('unknowntype.example.org')
@@ -109,10 +109,22 @@ def test_get_device_by_hostname(mocker):
     # Should log an error and exit if nothing is found
     scd_netbox = SCDNetbox()
     scd_netbox.netbox.ipam.ip_addresses = SimpleNamespace()
-    scd_netbox.netbox.ipam.ip_addresses.get = mocker.MagicMock(return_value=None)
+    scd_netbox.netbox.ipam.ip_addresses.filter = mocker.MagicMock(return_value=None)
     mocked_error = mocker.patch.object(logging, 'error')
     with pytest.raises(SystemExit):
         scd_netbox.get_device_by_hostname('doesnotexist.example.org')
+    mocked_error.assert_called()
+
+    # Should log an error and exit if multiple addresses are found
+    scd_netbox = SCDNetbox()
+    scd_netbox.netbox.ipam.ip_addresses = SimpleNamespace()
+    scd_netbox.netbox.ipam.ip_addresses.filter = mocker.MagicMock(return_value=[
+        fake_address_physical,
+        fake_address_virtual,
+    ])
+    mocked_error = mocker.patch.object(logging, 'error')
+    with pytest.raises(SystemExit):
+        scd_netbox.get_device_by_hostname('multihost.example.org')
     mocked_error.assert_called()
 
 
