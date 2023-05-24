@@ -209,6 +209,30 @@ class Netbox2Aquilon(SCDNetbox):
                     cmds.append(' '.join(cmd))
         return cmds
 
+    def _netbox_get_personality(self, device, archetype, personality=None):
+        if not personality:
+            personality = 'inventory'
+
+            logging.debug('Personality not specified, generating one from role and tenant')
+            if device.tenant:
+                if hasattr(device, 'device_role') and device.device_role:
+                    # i.e. dcim.Devices
+                    personality = f'{device.device_role.slug}-{device.tenant.slug}'
+                elif hasattr(device, 'role') and device.role:
+                    # i.e. virtualization.VirtualMachines
+                    personality = f'{device.role.slug}-{device.tenant.slug}'
+                else:
+                    logging.debug('Device has no role, falling back to "inventory"')
+            else:
+                logging.debug('Device has no tenant, falling back to "inventory"')
+
+        # Fall back to inventory personality if specific personality can't be found
+        if self._call_aq(f'show_personality --archetype {archetype} --personality {personality}') != 0:
+            logging.warning('Personality "%s" not found, falling back to "inventory"', personality)
+            personality = 'inventory'
+
+        return personality
+
     def netbox_copy(self, opts):
         """ Copy a device from NetBox to Aquilon """
         device = self._netbox_get_device(opts)
@@ -228,20 +252,13 @@ class Netbox2Aquilon(SCDNetbox):
 
         if isinstance(device, pynetbox.models.dcim.Devices):
             cmds = self._netbox_copy_device(device)
-            personality = f'{device.device_role.slug}-{device.tenant.slug}'
         elif isinstance(device, pynetbox.models.virtualization.VirtualMachines):
             cmds = self._netbox_copy_vm(device)
-            personality = 'inventory'
-            if device.role:
-                personality = f'{device.role.slug}-{device.tenant.slug}'
         else:
             logging.error('Unsupported device type to copy "%s"', type(device))
             sys.exit(1)
 
-        # Fall back to inventory personality if specific personality can't be found
-        if self._call_aq(f'show_personality --archetype {opts.archetype} --personality {personality}') != 0:
-            logging.info('Personality "%s" not found, falling back to "inventory"', personality)
-            personality = 'inventory'
+        personality = self._netbox_get_personality(device, opts.archetype)
 
         if not personality:
             logging.error('Unable to determine personality of device "%s"', type(device))
