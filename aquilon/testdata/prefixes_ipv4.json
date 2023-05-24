@@ -153,103 +153,20 @@
     "mark_utilized": false,
     "description": "abc-public-leaf-1",
     "tags": [],
-    "custom_fields": {},
+    "custom_fields": {
+        "aq_name": null,
+        "gateway_ip": {
+            "id": 20476,
+            "url": "https://netbox.example.org/api/ipam/ip-addresses/20476/",
+            "display": "192.168.216.65/27",
+            "family": 4,
+            "address": "192.168.216.65/27"
+        }
+    },
     "created": "2022-12-20",
     "last_updated": "2022-12-20T12:23:18.071853Z",
     "children": 0,
     "_depth": 2
-  },
-  {
-    "id": 259,
-    "url": "http://netbox.example.org/api/ipam/prefixes/259/",
-    "display": "10.6.0.0/16",
-    "family": {
-      "value": 4,
-      "label": "IPv4"
-    },
-    "prefix": "10.6.0.0/16",
-    "site": null,
-    "vrf": {
-      "id": 3,
-      "url": "http://netbox.example.org/api/ipam/vrfs/3/",
-      "display": "t1_management",
-      "name": "t1_management",
-      "rd": null
-    },
-    "tenant": {
-      "id": 7,
-      "url": "http://netbox.example.org/api/tenancy/tenants/7/",
-      "display": "Tier1",
-      "name": "Tier1",
-      "slug": "tier1"
-    },
-    "vlan": {
-      "id": 59,
-      "url": "http://netbox.example.org/api/ipam/vlans/59/",
-      "display": "t1-man-reserved (4006)",
-      "vid": 4006,
-      "name": "t1-man-reserved"
-    },
-    "status": {
-      "value": "active",
-      "label": "Active"
-    },
-    "role": {
-      "id": 7,
-      "url": "http://netbox.example.org/api/ipam/roles/7/",
-      "display": "Private",
-      "name": "Private",
-      "slug": "private"
-    },
-    "is_pool": false,
-    "mark_utilized": false,
-    "description": "man-reserved",
-    "tags": [],
-    "custom_fields": {},
-    "created": "2022-11-14",
-    "last_updated": "2022-11-14T17:04:43.995948Z",
-    "children": 0,
-    "_depth": 0
-  },
-  {
-    "id": 58,
-    "url": "http://netbox.example.org/api/ipam/prefixes/58/",
-    "display": "192.168.232.0/24",
-    "family": {
-      "value": 4,
-      "label": "IPv4"
-    },
-    "prefix": "192.168.232.0/24",
-    "site": null,
-    "vrf": {
-      "id": 4,
-      "url": "http://netbox.example.org/api/ipam/vrfs/4/",
-      "display": "SCD Cloud",
-      "name": "SCD Cloud",
-      "rd": null
-    },
-    "tenant": {
-      "id": 8,
-      "url": "http://netbox.example.org/api/tenancy/tenants/8/",
-      "display": "Cloud",
-      "name": "Cloud",
-      "slug": "cloud"
-    },
-    "vlan": null,
-    "status": {
-      "value": "active",
-      "label": "Active"
-    },
-    "role": null,
-    "is_pool": false,
-    "mark_utilized": false,
-    "description": "quattor-builds",
-    "tags": [],
-    "custom_fields": {},
-    "created": "2020-11-10",
-    "last_updated": "2020-11-10T16:36:22.196123Z",
-    "children": 0,
-    "_depth": 0
   },
   {
     "id": 64,
@@ -285,7 +202,9 @@
     "mark_utilized": false,
     "description": "Tape libraries",
     "tags": [],
-    "custom_fields": {},
+    "custom_fields": {
+      "aq_name": "t1-private-tape-libraries"
+    },
     "created": "2021-02-16",
     "last_updated": "2021-02-16T17:48:24.795602Z",
     "children": 0,

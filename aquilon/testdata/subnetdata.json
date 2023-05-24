@@ -1,7 +1,7 @@
 [
   {
     "UDF": {
-      "TYPE": "Private"
+      "TYPE": "private"
     },
     "SubnetAddress": "10.246.176.0",
     "SubnetMask": "22",
@@ -9,7 +9,7 @@
   },
   {
     "UDF": {
-      "TYPE": "WAN"
+      "TYPE": "wan"
     },
     "SubnetAddress": "192.168.80.0",
     "SubnetMask": "22",
@@ -17,7 +17,7 @@
   },
   {
     "UDF": {
-      "TYPE": "OPN"
+      "TYPE": "opn"
     },
     "SubnetAddress": "192.168.176.0",
     "SubnetMask": "22",
@@ -25,36 +25,20 @@
   },
   {
     "UDF": {
-      "TYPE": "Leaf"
+      "TYPE": "clos-leaf"
     },
     "SubnetAddress": "192.168.216.64",
     "SubnetMask": "27",
-    "SubnetName": "abc-public-leaf-1"
+    "SubnetName": "abc-public-leaf-1",
+    "DefaultRouters": "192.168.216.65"
   },
   {
     "UDF": {
-      "TYPE": "Private",
-      "VRF": "t1_management"
-    },
-    "SubnetAddress": "10.6.0.0",
-    "SubnetMask": "16",
-    "SubnetName": "man-reserved"
-  },
-  {
-    "UDF": {
-      "VRF": "SCD Cloud"
-    },
-    "SubnetAddress": "192.168.232.0",
-    "SubnetMask": "24",
-    "SubnetName": "quattor-builds"
-  },
-  {
-    "UDF": {
-      "TYPE": "Private",
+      "TYPE": "private",
       "LOCATION": "B42 LPD"
     },
     "SubnetAddress": "172.16.254.0",
     "SubnetMask": "26",
-    "SubnetName": "Tape libraries"
+    "SubnetName": "t1-private-tape-libraries"
   }
 ]
