@@ -61,7 +61,7 @@ class Netbox2Aquilon(SCDNetbox):
             sys.exit(2)
 
         # check if device has a primary ip
-        if device.primary_ip is None:
+        if device.primary_ip4 is None:
             logging.error("No primary IP defined for host")
             sys.exit(1)
 
@@ -166,7 +166,7 @@ class Netbox2Aquilon(SCDNetbox):
             addresses = self.get_addresses_from_interface(interface)
             for address in addresses:
                 # Don't add the primary IP as add_host does this
-                if address.address != device.primary_ip.address:
+                if address.address != device.primary_ip4.address:
                     # Remove prefix length as aquilon gets this from the network definition
                     address.address = address.address.split('/')[0]
                     cmd = [
@@ -220,10 +220,10 @@ class Netbox2Aquilon(SCDNetbox):
         # Finally add the host to the machine
         cmds.append(' '.join([
             'add_host',
-            f'--hostname {device.primary_ip.dns_name}',
+            f'--hostname {device.primary_ip4.dns_name}',
             f'--machine {device.aq_machine_name}',
             f'--archetype {opts.archetype}',
-            f'--ip {device.primary_ip.address.split("/")[0]}',
+            f'--ip {device.primary_ip4.address.split("/")[0]}',
             f'--personality {personality}',
             f'--{aqdesttype} {aqdestval}',
             f'--osname {opts.osname}',
