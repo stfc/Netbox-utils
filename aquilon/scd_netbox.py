@@ -76,11 +76,18 @@ class SCDNetbox():
 
     def get_device_by_hostname(self, hostname):
         """ Get a single device from NetBox based on fully qualified domain name """
-        ip_address = self.netbox.ipam.ip_addresses.get(dns_name=hostname)
-        if ip_address is None:
+        ip_addresses = self.netbox.ipam.ip_addresses.filter(dns_name=hostname, family=4)
+        if ip_addresses is None:
             logging.error("Hostname not found in NetBox")
             sys.exit(1)
 
+        ip_addresses = list(ip_addresses)
+
+        if len(ip_addresses) > 1:
+            logging.error("Got multiple IPs %s for hostname %s", ip_addresses, hostname)
+            sys.exit(1)
+
+        ip_address = ip_addresses[0]
         logging.debug("Got IP %s for hostname %s", ip_address, hostname)
 
         # The ip_address is assigned to an object, which is what we are after,
