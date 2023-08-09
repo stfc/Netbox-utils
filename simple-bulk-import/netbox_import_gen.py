@@ -85,17 +85,17 @@ for importee in hostdict:
 #print(ips)
 
 # Output device types json file
-with open("devicetypes.json","w") as outfile:
+with open("devicetypes.json","w", encoding="utf-8") as outfile:
     outfile.write(json.dumps(devicetypes))
 
 # Output devices json file
-with open("devices.json","w") as outfile:
+with open("devices.json","w", encoding="utf-8") as outfile:
     outfile.write(json.dumps(devices))
 
 # Output Interfaces json file
-with open("interfaces.json","w") as outfile:
+with open("interfaces.json","w", encoding="utf-8") as outfile:
     outfile.write(json.dumps(interfaces))
 
 # Output IPs json file
-with open("ips.json","w") as outfile:
+with open("ips.json","w", encoding="utf-8") as outfile:
     outfile.write(json.dumps(ips))
