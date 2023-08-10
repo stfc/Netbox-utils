@@ -34,20 +34,48 @@ class Netbox2Aquilon(SCDNetbox):
                 sandbox = (owner + b'/' + name).decode('utf-8')
         return sandbox
 
-    def _call_aq(self, opts, cmds):
+    def _call_aq(self, cmd):
+        logging.debug(
+            'Calling %s %s',
+            self.config['aquilon']['cli_path'],
+            cmd,
+        )
+        process = subprocess.run(
+            [self.config['aquilon']['cli_path']]+cmd.split(' '),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        logging.debug(
+            'Commmand %s %s exited with code %d',
+            self.config['aquilon']['cli_path'],
+            cmd,
+            process.returncode,
+        )
+        if not process.stdout and not process.stderr:
+            logging.debug(
+                'Commmand %s %s returned no data',
+                self.config['aquilon']['cli_path'],
+                cmd,
+            )
+            return -1
+        return process.returncode
+
+    def _call_aq_cmds(self, cmds, dryrun=False):
         for cmd in cmds:
-            if opts.dryrun:
+            if dryrun:
                 print('aq ' + cmd)
             else:
-                retval = subprocess.call([self.config['aquilon']['cli_path']]+cmd.split(' '))
-                if retval != 0:
+                retval = self._call_aq(cmd)
+                if retval > 0:
                     logging.error(
                         'Commmand %s %s exited with error code %d',
                         self.config['aquilon']['cli_path'],
                         cmd,
                         retval,
                     )
-                    sys.exit(1)
+                    return retval
+        return 0
 
     def _netbox_get_device(self, opts):
         if opts.magdb_id:
@@ -182,6 +210,30 @@ class Netbox2Aquilon(SCDNetbox):
                     cmds.append(' '.join(cmd))
         return cmds
 
+    def _netbox_get_personality(self, device, archetype, personality=None):
+        if not personality:
+            personality = 'inventory'
+
+            logging.debug('Personality not specified, generating one from role and tenant')
+            if device.tenant:
+                if hasattr(device, 'device_role') and device.device_role:
+                    # i.e. dcim.Devices
+                    personality = f'{device.device_role.slug}-{device.tenant.slug}'
+                elif hasattr(device, 'role') and device.role:
+                    # i.e. virtualization.VirtualMachines
+                    personality = f'{device.role.slug}-{device.tenant.slug}'
+                else:
+                    logging.debug('Device has no role, falling back to "inventory"')
+            else:
+                logging.debug('Device has no tenant, falling back to "inventory"')
+
+        # Fall back to inventory personality if specific personality can't be found
+        if self._call_aq(f'show_personality --archetype {archetype} --personality {personality}') != 0:
+            logging.warning('Personality "%s" not found, falling back to "inventory"', personality)
+            personality = 'inventory'
+
+        return personality
+
     def netbox_copy(self, opts):
         """ Copy a device from NetBox to Aquilon """
         device = self._netbox_get_device(opts)
@@ -201,15 +253,13 @@ class Netbox2Aquilon(SCDNetbox):
 
         if isinstance(device, pynetbox.models.dcim.Devices):
             cmds = self._netbox_copy_device(device)
-            personality = f'{device.device_role.slug}-{device.tenant.slug}'
         elif isinstance(device, pynetbox.models.virtualization.VirtualMachines):
             cmds = self._netbox_copy_vm(device)
-            personality = 'inventory'
-            if device.role:
-                personality = f'{device.role.slug}-{device.tenant.slug}'
         else:
             logging.error('Unsupported device type to copy "%s"', type(device))
             sys.exit(1)
+
+        personality = self._netbox_get_personality(device, opts.archetype)
 
         if not personality:
             logging.error('Unable to determine personality of device "%s"', type(device))
@@ -233,7 +283,7 @@ class Netbox2Aquilon(SCDNetbox):
         # Add additional addresses to non-primary interfaces
         cmds.extend(self._netbox_copy_addresses(device))
 
-        self._call_aq(opts, cmds)
+        sys.exit(self._call_aq_cmds(cmds, dryrun=opts.dryrun))
 
 
 def _main():

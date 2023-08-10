@@ -88,3 +88,65 @@ def test__netbox_copy_addresses(mocker):
     assert set(test_obj._netbox_copy_addresses(fake_device)) == set([
         'add_interface_address --machine system7592 --interface eth0 --ip 192.168.180.13 --fqdn aquilon.example.org',
     ])
+
+
+def test__netbox_get_personality(mocker):
+    test_obj = Netbox2Aquilon()
+
+    fake_devices = [
+        # Tuple containing the device object and the name of role attribute in this device type
+        (deepcopy(FAKE.DEVICE_PHYSICAL), 'device_role'),
+        (deepcopy(FAKE.DEVICE_VIRTUAL), 'role'),
+    ]
+
+    # Test with devices that present as physical and virtual
+    # Currently this only changes the name of the attribute containing the role
+    for dev, role_attr in fake_devices:
+        if hasattr(dev, 'role'):
+            del dev.role
+        if hasattr(dev, 'role'):
+            del dev.device_role
+
+        # Test without and with a personality specified
+        # If once is specified it should always be returned as long as aquilon can find it
+        for opt in (None, 'dave'):
+            # All combinations of role and tenant, pretending that aquilon will accept any personality
+            # Should return 'inventory' unless both role and tenant are set
+            test_obj._call_aq = mocker.MagicMock(return_value=0)
+
+            setattr(dev, role_attr, None)
+            dev.tenant = None
+            assert test_obj._netbox_get_personality(dev, 'fake_archetype', opt) == opt if opt else 'inventory'
+
+            setattr(dev, role_attr, SimpleNamespace(slug='roland'))
+            dev.tenant = None
+            assert test_obj._netbox_get_personality(dev, 'fake_archetype', opt) == opt if opt else 'inventory'
+
+            setattr(dev, role_attr, None)
+            dev.tenant = SimpleNamespace(slug='tennant')
+            assert test_obj._netbox_get_personality(dev, 'fake_archetype', opt) == opt if opt else 'inventory'
+
+            setattr(dev, role_attr, SimpleNamespace(slug='roland'))
+            dev.tenant = SimpleNamespace(slug='tennant')
+            assert test_obj._netbox_get_personality(dev, 'fake_archetype', opt) == opt if opt else 'roland-tennant'
+
+
+            # All combinations of role and tenant, pretending that aquilon will not accept anything
+            # Should always return 'inventory'
+            test_obj._call_aq = mocker.MagicMock(return_value=1)
+
+            setattr(dev, role_attr, None)
+            dev.tenant = None
+            assert test_obj._netbox_get_personality(dev, 'fake_archetype', opt) == 'inventory'
+
+            setattr(dev, role_attr, SimpleNamespace(slug='roland'))
+            dev.tenant = None
+            assert test_obj._netbox_get_personality(dev, 'fake_archetype', opt) == 'inventory'
+
+            setattr(dev, role_attr, None)
+            dev.tenant = SimpleNamespace(slug='tennant')
+            assert test_obj._netbox_get_personality(dev, 'fake_archetype', opt) == 'inventory'
+
+            setattr(dev, role_attr, SimpleNamespace(slug='roland'))
+            dev.tenant = SimpleNamespace(slug='tennant')
+            assert test_obj._netbox_get_personality(dev, 'fake_archetype', opt) == 'inventory'
