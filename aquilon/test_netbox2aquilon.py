@@ -174,3 +174,99 @@ def test__netbox_get_personality(mocker):
             setattr(dev, role_attr, SimpleNamespace(slug='roland'))
             dev.tenant = SimpleNamespace(slug='tennant')
             assert test_obj._netbox_get_personality(dev, 'fake_archetype', opt) == 'inventory'
+
+
+def test__undo_cmds():
+    test_obj = Netbox2Aquilon()
+
+    cmds_forward = [
+        [
+            'add_machine',
+            '--machine', 'system6690',
+            '--vendor', 'virtual',
+            '--model', 'foo-bar',
+            '--cluster', 'vmware-foo',
+            '--cpuname', 'xeon_e5_2650v4',
+            '--cpuspeed', '2200',
+            '--cpucount', '2',
+            '--memory', '38400',
+        ],
+        [
+            'add_disk',
+            '--machine', 'system6690',
+            '--disk', 'sda',
+            '--controller', 'sata',
+            '--size', '40',
+            '--boot',
+        ],
+        [
+            'add_interface',
+            '--machine', 'system6690',
+            '--mac', 'A1:B2:C3:D4:E5:1B',
+            '--interface', 'eth0',
+        ],
+        [
+            'add_interface',
+            '--machine', 'system6690',
+            '--mac', 'A1:B2:C3:D4:E5:99',
+            '--interface', 'eth1',
+        ],
+        [
+            'update_interface',
+            '--machine', 'system6690',
+            '--interface', 'eth0',
+            '--boot',
+        ],
+        [
+            'add_host',
+            '--hostname', 'www.example.org',
+            '--machine', 'system6690',
+            '--archetype', 'dave',
+            '--ip', '192.168.180.221',
+            '--personality', 'inventory',
+            '--sandbox', 'bob/test',
+            '--osname', 'rocky',
+            '--osversion', '8x-x86_64',
+        ],
+        [
+            'add_interface_address',
+            '--machine', 'system6690',
+            '--interface', 'eth0',
+            '--ip', '192.168.180.53',
+            '--fqdn', 'overwatch.example.org',
+        ],
+    ]
+
+    cmds_reverse = [
+        [
+            'del_interface_address',
+            '--machine', 'system6690',
+            '--interface', 'eth0',
+            '--ip', '192.168.180.53',
+        ],
+        [
+            'del_host',
+            '--hostname', 'www.example.org',
+        ],
+        [
+            'del_interface',
+            '--machine', 'system6690',
+            '--interface', 'eth1',
+        ],
+        [
+            'del_interface',
+            '--machine', 'system6690',
+            '--interface', 'eth0',
+        ],
+        [
+            'del_disk',
+            '--machine', 'system6690',
+            '--disk', 'sda',
+        ],
+        [
+            'del_machine',
+            '--machine', 'system6690',
+        ],
+    ]
+
+    assert test_obj._undo_cmds(cmds_forward) == cmds_reverse

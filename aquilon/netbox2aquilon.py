@@ -292,6 +292,33 @@ class Netbox2Aquilon(SCDNetbox):
 
         sys.exit(self._call_aq_cmds(cmds, dryrun=opts.dryrun))
 
+    @classmethod
+    def _undo_cmds(cls, cmds_run):
+        cmds_undone = []
+
+        # Map of required arguments for delete commands
+        cmd_map = {
+            'del_disk': ['--machine', '--disk'],
+            'del_host': ['--hostname'],
+            'del_interface': ['--interface', '--machine'],
+            'del_interface_address': ['--machine', '--interface', '--ip'],
+            'del_machine': ['--machine'],
+        }
+
+        # Iterate over the list of commands that have been run and generate commands that undo them
+        # Only "add" commands actually need to be undone
+        for cmd in cmds_run:
+            action = cmd[0].replace('add_', 'del_')
+            if action in cmd_map:
+                cmd_undo = [action]
+                for i, arg in enumerate(cmd):
+                    if arg in cmd_map[action]:
+                        cmd_undo.extend([cmd[i], cmd[i+1]])
+                cmds_undone.append(cmd_undo)
+
+        cmds_undone.reverse()
+        return cmds_undone
+
 
 def _main():
     logging.basicConfig(format='%(levelname)s: %(message)s')
