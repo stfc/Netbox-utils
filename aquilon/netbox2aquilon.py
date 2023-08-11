@@ -36,27 +36,27 @@ class Netbox2Aquilon(SCDNetbox):
 
     def _call_aq(self, cmd):
         logging.debug(
-            'Calling %s %s',
+            'Calling "%s %s"',
             self.config['aquilon']['cli_path'],
-            cmd,
+            ' '.join(cmd),
         )
         process = subprocess.run(
-            [self.config['aquilon']['cli_path']]+cmd.split(' '),
+            [self.config['aquilon']['cli_path']] + cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             check=False,
         )
         logging.debug(
-            'Commmand %s %s exited with code %d',
+            'Commmand "%s %s" exited with code %d',
             self.config['aquilon']['cli_path'],
-            cmd,
+            ' '.join(cmd),
             process.returncode,
         )
         if not process.stdout and not process.stderr:
             logging.debug(
-                'Commmand %s %s returned no data',
+                'Commmand "%s %s" returned no data',
                 self.config['aquilon']['cli_path'],
-                cmd,
+                ' '.join(cmd),
             )
             return -1
         return process.returncode
@@ -64,14 +64,14 @@ class Netbox2Aquilon(SCDNetbox):
     def _call_aq_cmds(self, cmds, dryrun=False):
         for cmd in cmds:
             if dryrun:
-                print('aq ' + cmd)
+                print('# aq ' + ' '.join(cmd))
             else:
                 retval = self._call_aq(cmd)
                 if retval > 0:
                     logging.error(
-                        'Commmand %s %s exited with error code %d',
+                        'Commmand "%s %s" exited with error code %d',
                         self.config['aquilon']['cli_path'],
-                        cmd,
+                        ' '.join(cmd),
                         retval,
                     )
                     return retval
@@ -112,12 +112,12 @@ class Netbox2Aquilon(SCDNetbox):
 
         rack_name = rack_delimeter.join([device.site.facility.lower(), rack.facility_id])
 
-        cmds.append(' '.join([
+        cmds.append([
             'add_machine',
-            f'--machine {device.aq_machine_name}',
-            f'--model {device.device_type.slug}',
-            f'--rack {rack_name}',
-        ]))
+            '--machine', f'{device.aq_machine_name}',
+            '--model', f'{device.device_type.slug}',
+            '--rack', f'{rack_name}',
+        ])
 
         return cmds
 
@@ -134,26 +134,26 @@ class Netbox2Aquilon(SCDNetbox):
         if 'aq_name' in cluster.custom_fields:
             cluster_name = cluster.custom_fields['aq_name']
 
-        cmds.append(' '.join([
+        cmds.append([
             'add_machine',
-            f'--machine {virtual_machine.aq_machine_name}',
-            '--vendor virtual',
-            '--model vm-vmware',
-            f'--cluster {cluster_name}',
-            f'--cpuname {self.config["aquilon"]["cpuname"]}',
-            f'--cpuspeed {self.config["aquilon"]["cpuspeed"]}',
-            f'--cpucount {int(virtual_machine.vcpus)}',
-            f'--memory {virtual_machine.memory}',
-        ]))
+            '--machine', f'{virtual_machine.aq_machine_name}',
+            '--vendor', 'virtual',
+            '--model', 'vm-vmware',
+            '--cluster', f'{cluster_name}',
+            '--cpuname', f'{self.config["aquilon"]["cpuname"]}',
+            '--cpuspeed', f'{self.config["aquilon"]["cpuspeed"]}',
+            '--cpucount', f'{int(virtual_machine.vcpus)}',
+            '--memory', f'{virtual_machine.memory}',
+        ])
 
-        cmds.append(' '.join([
+        cmds.append([
             'add_disk',
-            f'--machine {virtual_machine.aq_machine_name}',
-            '--disk sda',
-            '--controller sata',
-            f'--size {virtual_machine.disk}',
+            '--machine', f'{virtual_machine.aq_machine_name}',
+            '--disk', 'sda',
+            '--controller', 'sata',
+            '--size', f'{virtual_machine.disk}',
             '--boot',
-        ]))
+        ])
 
         return cmds
 
@@ -166,25 +166,26 @@ class Netbox2Aquilon(SCDNetbox):
                 if tag.slug == 'bootable':
                     is_boot_interface = True
 
-            cmds.append((' '.join([
+            cmd = [
                 'add_interface',
-                f'--machine {device.aq_machine_name}',
-                f'--mac {interface.mac_address}',
-                f'--interface {interface.name}',
-                # Valid values are: bonding, bridge, loopback, management, oa, physical, public, virtual, vlan
+                '--machine', f'{device.aq_machine_name}',
+                '--mac', f'{interface.mac_address}',
+                '--interface', f'{interface.name}',
+            ]
+            if (hasattr(interface, 'mgmt_only') and interface.mgmt_only and not is_boot_interface):
                 # mgmt_only is only an attribute for physical devices
-                '--iftype management'
-                    if (hasattr(interface, 'mgmt_only') and interface.mgmt_only and not is_boot_interface) else '',
-            ])).strip())
+                # Valid values are: bonding, bridge, loopback, management, oa, physical, public, virtual, vlan
+                cmd.extend(['--iftype', 'management'])
 
+            cmds.append(cmd)
 
             if is_boot_interface:
-                cmds.append(' '.join([
+                cmds.append([
                     'update_interface',
-                    f'--machine {device.aq_machine_name}',
-                    f'--interface {interface.name}',
+                    '--machine', f'{device.aq_machine_name}',
+                    '--interface', f'{interface.name}',
                     '--boot',
-                ]))
+                ])
         return cmds
 
     def _netbox_copy_addresses(self, device):
@@ -199,15 +200,15 @@ class Netbox2Aquilon(SCDNetbox):
                     address.address = address.address.split('/')[0]
                     cmd = [
                         'add_interface_address',
-                        f'--machine {device.aq_machine_name}',
-                        f'--interface {interface.name}',
-                        f'--ip {address.address}',
+                        '--machine', f'{device.aq_machine_name}',
+                        '--interface', f'{interface.name}',
+                        '--ip', f'{address.address}',
                     ]
                     if address.dns_name:
-                        cmd.append(f'--fqdn {address.dns_name}')
+                        cmd.extend(['--fqdn', f'{address.dns_name}'])
                     if address.vrf:
-                        cmd.append(f'--network_environment {address.vrf}')
-                    cmds.append(' '.join(cmd))
+                        cmd.extend(['--network_environment', f'{address.vrf}'])
+                    cmds.append(cmd)
         return cmds
 
     def _netbox_get_personality(self, device, archetype, personality=None):
@@ -228,7 +229,8 @@ class Netbox2Aquilon(SCDNetbox):
                 logging.debug('Device has no tenant, falling back to "inventory"')
 
         # Fall back to inventory personality if specific personality can't be found
-        if self._call_aq(f'show_personality --archetype {archetype} --personality {personality}') != 0:
+        cmd_show_personality = ['show_personality', '--archetype', archetype, '--personality', personality]
+        if self._call_aq(cmd_show_personality) != 0:
             logging.warning('Personality "%s" not found, falling back to "inventory"', personality)
             personality = 'inventory'
 
@@ -268,17 +270,17 @@ class Netbox2Aquilon(SCDNetbox):
         cmds.extend(self._netbox_copy_interfaces(device))
 
         # Finally add the host to the machine
-        cmds.append(' '.join([
+        cmds.append([
             'add_host',
-            f'--hostname {device.primary_ip4.dns_name}',
-            f'--machine {device.aq_machine_name}',
-            f'--archetype {opts.archetype}',
-            f'--ip {device.primary_ip4.address.split("/")[0]}',
-            f'--personality {personality}',
-            f'--{aqdesttype} {aqdestval}',
-            f'--osname {opts.osname}',
-            f'--osversion {opts.osversion}',
-        ]))
+            '--hostname', f'{device.primary_ip4.dns_name}',
+            '--machine', f'{device.aq_machine_name}',
+            '--archetype', f'{opts.archetype}',
+            '--ip', f'{device.primary_ip4.address.split("/")[0]}',
+            '--personality', f'{personality}',
+            f'--{aqdesttype}', f'{aqdestval}',
+            '--osname', f'{opts.osname}',
+            '--osversion', f'{opts.osversion}',
+        ])
 
         # Add additional addresses to non-primary interfaces
         cmds.extend(self._netbox_copy_addresses(device))

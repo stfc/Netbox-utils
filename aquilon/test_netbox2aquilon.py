@@ -52,24 +52,43 @@ def test__netbox_copy_interfaces(mocker):
         aq_machine_name='system7592',
     )
     test_obj.get_interfaces_from_device = mocker.MagicMock(return_value=deepcopy(FAKE.INTERFACES_PHYSICAL[:-1]))
-    assert set(test_obj._netbox_copy_interfaces(fake_device)) == {
-        'add_interface --machine system7592 --mac A1:B2:C3:D4:E5:3F --interface bmc0 --iftype management',
-        'add_interface --machine system7592 --mac A1:B2:C3:D4:E5:DA --interface eth0',
-        'add_interface --machine system7592 --mac A1:B2:C3:D4:E5:DB --interface eth1',
-        'update_interface --machine system7592 --interface eth0 --boot',
-    }
+
+    add_interface_base_cmd = ['add_interface', '--machine', 'system7592']
+
+    add_bmc0 = add_interface_base_cmd + ['--mac', 'A1:B2:C3:D4:E5:3F', '--interface', 'bmc0', '--iftype', 'management']
+    add_eth0 = add_interface_base_cmd + ['--mac', 'A1:B2:C3:D4:E5:DA', '--interface', 'eth0']
+    add_eth1 = add_interface_base_cmd + ['--mac', 'A1:B2:C3:D4:E5:DB', '--interface', 'eth1']
+
+    update_eth0 = ['update_interface', '--machine', 'system7592', '--interface', 'eth0', '--boot']
+
+    cmds = test_obj._netbox_copy_interfaces(fake_device)
+
+    assert len(cmds) == 4
+    assert add_bmc0 in cmds
+    assert add_eth0 in cmds
+    assert add_eth1 in cmds
+    assert update_eth0 in cmds
+    # eth0 must be added before being updated
+    assert cmds.index(add_eth0) < cmds.index(update_eth0)
+
 
     # Virtual machine with two interfaces
     fake_device = SimpleNamespace(
         aq_machine_name='system6690',
     )
     test_obj.get_interfaces_from_device = mocker.MagicMock(return_value=deepcopy(FAKE.INTERFACES_VIRTUAL))
-    assert set(test_obj._netbox_copy_interfaces(fake_device)) == {
-        'add_interface --machine system6690 --mac A1:B2:C3:D4:E5:1B --interface eth0',
-        'add_interface --machine system6690 --mac A1:B2:C3:D4:E5:99 --interface eth1',
-        'update_interface --machine system6690 --interface eth0 --boot',
-    }
+    add_eth0 = ['add_interface', '--machine', 'system6690', '--mac', 'A1:B2:C3:D4:E5:1B', '--interface', 'eth0']
+    add_eth1 = ['add_interface', '--machine', 'system6690', '--mac', 'A1:B2:C3:D4:E5:99', '--interface', 'eth1']
+    update_eth0 = ['update_interface', '--machine', 'system6690', '--interface', 'eth0', '--boot']
 
+    cmds = test_obj._netbox_copy_interfaces(fake_device)
+
+    assert len(cmds) == 3
+    assert add_eth0 in cmds
+    assert add_eth1 in cmds
+    assert update_eth0 in cmds
+    # eth0 must be added before being updated
+    assert cmds.index(add_eth0) < cmds.index(update_eth0)
 
 def test__netbox_copy_addresses(mocker):
     test_obj = Netbox2Aquilon()
@@ -80,14 +99,19 @@ def test__netbox_copy_addresses(mocker):
     # No addresses on an interface
     test_obj.get_interfaces_from_device = mocker.MagicMock(return_value=[deepcopy(FAKE.INTERFACES_PHYSICAL)[1]])
     test_obj.get_addresses_from_interface = mocker.MagicMock(return_value=[])
-    assert set(test_obj._netbox_copy_addresses(fake_device)) == set([])
+    assert not test_obj._netbox_copy_addresses(fake_device)
 
     # Addresses on an interface
     test_obj.get_interfaces_from_device = mocker.MagicMock(return_value=[deepcopy(FAKE.INTERFACES_PHYSICAL[1])])
     test_obj.get_addresses_from_interface = mocker.MagicMock(return_value=deepcopy(FAKE.ADDRESSES_IPV4))
-    assert set(test_obj._netbox_copy_addresses(fake_device)) == set([
-        'add_interface_address --machine system7592 --interface eth0 --ip 192.168.180.13 --fqdn aquilon.example.org',
-    ])
+    assert test_obj._netbox_copy_addresses(fake_device) == [
+        [
+            'add_interface_address', '--machine',
+            'system7592', '--interface',
+            'eth0', '--ip', '192.168.180.13',
+            '--fqdn', 'aquilon.example.org',
+        ],
+    ]
 
 
 def test__netbox_get_personality(mocker):
