@@ -67,6 +67,7 @@ class Netbox2Aquilon(SCDNetbox):
         return process.returncode
 
     def _call_aq_cmds(self, cmds, dryrun=False):
+        cmds_committed = []
         for cmd in cmds:
             if dryrun:
                 print('# aq ' + ' '.join(cmd))
@@ -79,8 +80,9 @@ class Netbox2Aquilon(SCDNetbox):
                         ' '.join(cmd),
                         retval,
                     )
-                    return retval
-        return 0
+                    return cmds_committed
+                cmds_committed.append(cmd)
+        return cmds_committed
 
     def _netbox_get_device(self, opts):
         if opts.magdb_id:
@@ -290,7 +292,30 @@ class Netbox2Aquilon(SCDNetbox):
         # Add additional addresses to non-primary interfaces
         cmds.extend(self._netbox_copy_addresses(device))
 
-        sys.exit(self._call_aq_cmds(cmds, dryrun=opts.dryrun))
+        cmds_executed = self._call_aq_cmds(cmds, dryrun=opts.dryrun)
+
+        if not cmds_executed:
+            logging.error('All commands failed, nothing to undo')
+            sys.exit(1)
+
+        if cmds_executed == cmds:
+            sys.exit(0)
+
+        logging.error('Command failed, attempting to undo changes')
+        logging.debug('Commands executed: %s', cmds_executed)
+
+        cmds_undo = self._undo_cmds(cmds_executed)
+        logging.debug('Commands to run: %s', cmds_undo)
+
+        cmds_undone = self._call_aq_cmds(cmds_undo, dryrun=opts.dryrun)
+        logging.debug('Commands undone: %s', cmds_undone)
+
+        if cmds_undone == cmds_undo:
+            logging.info('All commands undone')
+            sys.exit(1)
+
+        logging.error('Unable to undo all commands')
+        sys.exit(1)
 
     @classmethod
     def _undo_cmds(cls, cmds_run):
