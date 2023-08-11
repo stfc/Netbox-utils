@@ -35,6 +35,7 @@ class Netbox2Aquilon(SCDNetbox):
         return sandbox
 
     def _call_aq(self, cmd):
+        logging.info('Calling %s', cmd[0])
         logging.debug(
             'Calling "%s %s"',
             self.config['aquilon']['cli_path'],
@@ -52,6 +53,10 @@ class Netbox2Aquilon(SCDNetbox):
             ' '.join(cmd),
             process.returncode,
         )
+        if process.stdout:
+            logging.info(process.stdout.decode('utf-8').strip())
+        if process.stderr:
+            logging.warning(process.stderr.decode('utf-8').strip())
         if not process.stdout and not process.stderr:
             logging.debug(
                 'Commmand "%s %s" returned no data',
