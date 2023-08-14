@@ -249,13 +249,17 @@ class Netbox2Aquilon(SCDNetbox):
 
         # Preserve MagDB style machine naming for migrated hosts
         # Add a property to the object to store the desired aquilon machine name
-        device.aq_machine_name = f'netbox-{device.id}'
+        device.aq_machine_name = None
         if 'magdb2netbox' in [t.slug for t in device.tags]:
             device.aq_machine_name = f'system{device.custom_fields["magdb_system_id"]}'
 
         if isinstance(device, pynetbox.models.dcim.Devices):
+            if device.aq_machine_name is None:
+                device.aq_machine_name = f'netbox-{device.id}'
             cmds = self._netbox_copy_device(device)
         elif isinstance(device, pynetbox.models.virtualization.VirtualMachines):
+            if device.aq_machine_name is None:
+                device.aq_machine_name = f'netboxvm-{device.id}'
             cmds = self._netbox_copy_vm(device)
         else:
             logging.error('Unsupported device type to copy "%s"', type(device))
