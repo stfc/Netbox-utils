@@ -48,6 +48,7 @@ for importee in hostdict:
     bmcinterface["type"] = "1000base-t"
     bmcinterface["name"] = "bmc0"
     bmcinterface["device"] = importee["FQDN"]
+    bmcinterface["vrf"] = importee["BMC VRF"]
     bmcinterface["mac_address"] = importee["BMC MAC"]
     interfaces.append(bmcinterface)
 
@@ -58,6 +59,7 @@ for importee in hostdict:
     ethinterface["type"] = importee["NIC 1 Type"]
     ethinterface["name"] = importee["NIC 1 Name"]
     ethinterface["device"] = importee["FQDN"]
+    ethinterface["vrf"] = importee["NIC 1 VRF"]
     ethinterface["mac_address"] = importee["NIC 1 MAC"]
     interfaces.append(ethinterface)
 
