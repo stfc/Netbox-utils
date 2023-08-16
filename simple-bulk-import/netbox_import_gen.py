@@ -39,6 +39,7 @@ for importee in hostdict:
     device["position"] = importee["Rack Position"]
     device["name"] = importee["FQDN"]
     device["serial"] = importee["Serial"]
+    device["cf_order_no"] = importee["Purchase Order"]
     devices.append(device)
 
     # Create BMC Interface
