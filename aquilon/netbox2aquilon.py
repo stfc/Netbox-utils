@@ -35,6 +35,7 @@ class Netbox2Aquilon(SCDNetbox):
         return sandbox
 
     def _call_aq(self, cmd):
+        logging.info('Calling %s', cmd[0])
         logging.debug(
             'Calling "%s %s"',
             self.config['aquilon']['cli_path'],
@@ -52,6 +53,10 @@ class Netbox2Aquilon(SCDNetbox):
             ' '.join(cmd),
             process.returncode,
         )
+        if process.stdout:
+            logging.info(process.stdout.decode('utf-8').strip())
+        if process.stderr:
+            logging.warning(process.stderr.decode('utf-8').strip())
         if not process.stdout and not process.stderr:
             logging.debug(
                 'Commmand "%s %s" returned no data',
@@ -62,6 +67,7 @@ class Netbox2Aquilon(SCDNetbox):
         return process.returncode
 
     def _call_aq_cmds(self, cmds, dryrun=False):
+        cmds_committed = []
         for cmd in cmds:
             if dryrun:
                 print('# aq ' + ' '.join(cmd))
@@ -74,8 +80,9 @@ class Netbox2Aquilon(SCDNetbox):
                         ' '.join(cmd),
                         retval,
                     )
-                    return retval
-        return 0
+                    return cmds_committed
+                cmds_committed.append(cmd)
+        return cmds_committed
 
     def _netbox_get_device(self, opts):
         if opts.magdb_id:
@@ -289,7 +296,57 @@ class Netbox2Aquilon(SCDNetbox):
         # Add additional addresses to non-primary interfaces
         cmds.extend(self._netbox_copy_addresses(device))
 
-        sys.exit(self._call_aq_cmds(cmds, dryrun=opts.dryrun))
+        cmds_executed = self._call_aq_cmds(cmds, dryrun=opts.dryrun)
+
+        if not cmds_executed:
+            logging.error('All commands failed, nothing to undo')
+            sys.exit(1)
+
+        if cmds_executed == cmds:
+            sys.exit(0)
+
+        logging.error('Command failed, attempting to undo changes')
+        logging.debug('Commands executed: %s', cmds_executed)
+
+        cmds_undo = self._undo_cmds(cmds_executed)
+        logging.debug('Commands to run: %s', cmds_undo)
+
+        cmds_undone = self._call_aq_cmds(cmds_undo, dryrun=opts.dryrun)
+        logging.debug('Commands undone: %s', cmds_undone)
+
+        if cmds_undone == cmds_undo:
+            logging.info('All commands undone')
+            sys.exit(1)
+
+        logging.error('Unable to undo all commands')
+        sys.exit(1)
+
+    @classmethod
+    def _undo_cmds(cls, cmds_run):
+        cmds_undone = []
+
+        # Map of required arguments for delete commands
+        cmd_map = {
+            'del_disk': ['--machine', '--disk'],
+            'del_host': ['--hostname'],
+            'del_interface': ['--interface', '--machine'],
+            'del_interface_address': ['--machine', '--interface', '--ip'],
+            'del_machine': ['--machine'],
+        }
+
+        # Iterate over the list of commands that have been run and generate commands that undo them
+        # Only "add" commands actually need to be undone
+        for cmd in cmds_run:
+            action = cmd[0].replace('add_', 'del_')
+            if action in cmd_map:
+                cmd_undo = [action]
+                for i, arg in enumerate(cmd):
+                    if arg in cmd_map[action]:
+                        cmd_undo.extend([cmd[i], cmd[i+1]])
+                cmds_undone.append(cmd_undo)
+
+        cmds_undone.reverse()
+        return cmds_undone
 
 
 def _main():
