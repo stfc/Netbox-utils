@@ -247,6 +247,9 @@ class Netbox2Aquilon(SCDNetbox):
         """ Copy a device from NetBox to Aquilon """
         device = self._netbox_get_device(opts)
 
+        aqdesttype = None
+        aqdestval = None
+
         if opts.sandbox:
             aqdesttype = 'sandbox'
             aqdestval = opts.sandbox
