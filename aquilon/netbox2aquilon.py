@@ -117,7 +117,7 @@ class Netbox2Aquilon(SCDNetbox):
         if 'magdb2netbox' in [t.slug for t in rack.tags]:
             rack_delimeter = 'rack'  # Preserve magdb2aquilon style names for migrated racks
 
-        rack_name = rack_delimeter.join([device.site.facility.lower(), rack.facility_id])
+        rack_name = rack_delimeter.join([device.site.slug, rack.facility_id])
 
         cmds.append([
             'add_machine',
