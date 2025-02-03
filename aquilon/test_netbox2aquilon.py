@@ -55,9 +55,9 @@ def test__netbox_copy_interfaces(mocker):
 
     add_interface_base_cmd = ['add_interface', '--machine', 'system7592']
 
-    add_bmc0 = add_interface_base_cmd + ['--mac', 'A1:B2:C3:D4:E5:3F', '--interface', 'bmc0', '--iftype', 'management']
-    add_eth0 = add_interface_base_cmd + ['--mac', 'A1:B2:C3:D4:E5:DA', '--interface', 'eth0']
-    add_eth1 = add_interface_base_cmd + ['--mac', 'A1:B2:C3:D4:E5:DB', '--interface', 'eth1']
+    add_bmc0 = add_interface_base_cmd + ['--interface', 'bmc0', '--mac', 'A1:B2:C3:D4:E5:3F', '--iftype', 'management']
+    add_eth0 = add_interface_base_cmd + ['--interface', 'eth0', '--mac', 'A1:B2:C3:D4:E5:DA']
+    add_eth1 = add_interface_base_cmd + ['--interface', 'eth1', '--mac', 'A1:B2:C3:D4:E5:DB']
 
     update_eth0 = ['update_interface', '--machine', 'system7592', '--interface', 'eth0', '--boot']
 
@@ -77,8 +77,8 @@ def test__netbox_copy_interfaces(mocker):
         aq_machine_name='system6690',
     )
     test_obj.get_interfaces_from_device = mocker.MagicMock(return_value=deepcopy(FAKE.INTERFACES_VIRTUAL))
-    add_eth0 = ['add_interface', '--machine', 'system6690', '--mac', 'A1:B2:C3:D4:E5:1B', '--interface', 'eth0']
-    add_eth1 = ['add_interface', '--machine', 'system6690', '--mac', 'A1:B2:C3:D4:E5:99', '--interface', 'eth1']
+    add_eth0 = ['add_interface', '--machine', 'system6690', '--interface', 'eth0', '--mac', 'A1:B2:C3:D4:E5:1B']
+    add_eth1 = ['add_interface', '--machine', 'system6690', '--interface', 'eth1', '--mac', 'A1:B2:C3:D4:E5:99']
     update_eth0 = ['update_interface', '--machine', 'system6690', '--interface', 'eth0', '--boot']
 
     cmds = test_obj._netbox_copy_interfaces(fake_device)
@@ -89,6 +89,37 @@ def test__netbox_copy_interfaces(mocker):
     assert update_eth0 in cmds
     # eth0 must be added before being updated
     assert cmds.index(add_eth0) < cmds.index(update_eth0)
+
+
+    # Physical device with two bonded LAG interfaces
+    fake_device = SimpleNamespace(
+        aq_machine_name='system8211',
+    )
+    test_obj.get_interfaces_from_device = mocker.MagicMock(return_value=deepcopy(FAKE.INTERFACES_PHYSICAL_LAGS))
+
+    add_interface_base_cmd = ['add_interface', '--machine', 'system8211']
+    update_interface_base_cmd = ['update_interface', '--machine', 'system8211']
+
+    cmds = test_obj._netbox_copy_interfaces(fake_device)
+
+    assert len(cmds) == 12
+
+    assert add_interface_base_cmd + ['--interface', 'bond0', '--iftype', 'bonding'] in cmds
+    assert add_interface_base_cmd + ['--interface', 'bond1', '--iftype', 'bonding'] in cmds
+    assert add_interface_base_cmd + ['--interface', 'eth0', '--mac', 'A1:B2:C3:69:2A:A1'] in cmds
+    assert add_interface_base_cmd + ['--interface', 'eth1', '--mac', 'A1:B2:C3:69:2A:A2'] in cmds
+    assert add_interface_base_cmd + ['--interface', 'eth2', '--mac', 'D4:E5:3F:52:37:8D'] in cmds
+    assert add_interface_base_cmd + ['--interface', 'eth3', '--mac', 'D4:E5:3F:52:37:8E'] in cmds
+
+    assert update_interface_base_cmd + ['--interface', 'bond0', '--boot'] in cmds
+    assert update_interface_base_cmd + ['--interface', 'eth0', '--master', 'bond1'] in cmds
+    assert update_interface_base_cmd + ['--interface', 'eth1', '--master', 'bond1'] in cmds
+    assert update_interface_base_cmd + ['--interface', 'eth2', '--master', 'bond0'] in cmds
+    assert update_interface_base_cmd + ['--interface', 'eth3', '--master', 'bond0'] in cmds
+
+    # eth0 must be added before being updated
+    #assert cmds.index(add_eth0) < cmds.index(update_eth0)
+
 
 def test__netbox_copy_addresses(mocker):
     test_obj = Netbox2Aquilon()
@@ -202,14 +233,14 @@ def test__undo_cmds():
         [
             'add_interface',
             '--machine', 'system6690',
-            '--mac', 'A1:B2:C3:D4:E5:1B',
             '--interface', 'eth0',
+            '--mac', 'A1:B2:C3:D4:E5:1B',
         ],
         [
             'add_interface',
             '--machine', 'system6690',
-            '--mac', 'A1:B2:C3:D4:E5:99',
             '--interface', 'eth1',
+            '--mac', 'A1:B2:C3:D4:E5:99',
         ],
         [
             'update_interface',

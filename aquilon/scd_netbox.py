@@ -148,11 +148,13 @@ class SCDNetbox():
         for interface in filter_interfaces:
             if interface.mac_address:
                 interfaces.append(interface)
+            elif hasattr(interface, 'type') and interface.type.value == 'lag':
+                interfaces.append(interface)
             else:
                 unusedintf += 1
 
         if unusedintf:
-            logging.warning("%s interfaces without mac address were not included", unusedintf)
+            logging.warning("%s non-lag interfaces without mac address were not included", unusedintf)
 
         return interfaces
 
