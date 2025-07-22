@@ -22,6 +22,7 @@ def load_data():
         'device_physical': pynetbox.models.dcim.Devices,
         'device_virtual': pynetbox.models.virtualization.VirtualMachines,
         'interfaces_physical': pynetbox.models.dcim.Interfaces,
+        'interfaces_physical_lags': pynetbox.models.dcim.Interfaces,
         'interfaces_virtual': pynetbox.core.response.Record,
         'addresses_ipv4': pynetbox.models.ipam.IpAddresses,
         'addresses_ipv6': pynetbox.models.ipam.IpAddresses,
