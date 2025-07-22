@@ -145,7 +145,7 @@ class Netbox2Aquilon(SCDNetbox):
             'add_machine',
             '--machine', f'{virtual_machine.aq_machine_name}',
             '--vendor', 'virtual',
-            '--model', 'vm-vmware',
+            '--model', f'vm-{cluster.type.slug}',
             '--cluster', f'{cluster_name}',
             '--cpuname', f'{self.config["aquilon"]["cpuname"]}',
             '--cpuspeed', f'{self.config["aquilon"]["cpuspeed"]}',
