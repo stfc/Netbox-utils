@@ -185,3 +185,15 @@ class SCDNetbox():
                 )
 
         return ipv4_addresses
+
+    def get_disks_from_device(self, device):
+        """
+        Get all virtual disks associated with a virtual machine
+        """
+        if isinstance(device, pynetbox.models.virtualization.VirtualMachines):
+            filtered_disks = self.netbox.virtualization.virtual_disks.filter(virtual_machine_id=device.id)
+        else:
+            logging.error('Unsupported device type for disks "%s"', type(device))
+            sys.exit(1)
+
+        return filtered_disks
