@@ -153,14 +153,35 @@ class Netbox2Aquilon(SCDNetbox):
             '--memory', f'{virtual_machine.memory}',
         ])
 
-        cmds.append([
-            'add_disk',
-            '--machine', f'{virtual_machine.aq_machine_name}',
-            '--disk', 'sda',
-            '--controller', 'sata',
-            '--size', f'{virtual_machine.disk}',
-            '--boot',
-        ])
+        # Check if VM has any new-style virtual disks defined,
+        # If so, use them and set the first as bootable,
+        # If not, fall back to the classic single bootable disk method.
+        virtual_disks = self.get_disks_from_device(virtual_machine)
+        if virtual_disks:
+            boot = True
+            for disk in virtual_disks:
+                cmd = [
+                    'add_disk',
+                    '--machine', f'{virtual_machine.aq_machine_name}',
+                    '--disk', f'{disk.name}',
+                    '--controller', 'sata',
+                    '--size', f'{disk.size}',
+                ]
+                if boot:
+                    cmd.append('--boot')
+                    boot = False
+                if disk.description:
+                    cmd += ['--comments', f'"{disk.description}"']
+                cmds.append(cmd)
+        else:
+            cmds.append([
+                'add_disk',
+                '--machine', f'{virtual_machine.aq_machine_name}',
+                '--disk', 'sda',
+                '--controller', 'sata',
+                '--size', f'{virtual_machine.disk}',
+                '--boot',
+            ])
 
         return cmds
 
