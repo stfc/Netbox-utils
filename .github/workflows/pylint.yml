@@ -3,7 +3,7 @@ name: Lint
 on: [push, pull_request]
 
 jobs:
-  build:
+  pylint:
     runs-on: ubuntu-latest
     container:
       image: ${{ matrix.container-image }}
@@ -16,12 +16,13 @@ jobs:
         fetch-depth: 0
     - name: Install Python
       run: |
-        dnf install -y python3 python3-pip findutils
+        dnf install -y python3 findutils
     - name: Install dependencies
       run: |
-        python3 -m pip install --upgrade pip
-        pip3 install -r requirements.txt
-        pip3 install -r test_requirements.txt
+        python3 -m venv "$RUNNER_TEMP/venv"
+        "$RUNNER_TEMP/venv/bin/pip" install --upgrade pip
+        "$RUNNER_TEMP/venv/bin/pip" install -r requirements.txt
+        "$RUNNER_TEMP/venv/bin/pip" install -r test_requirements.txt
     - name: Analysing any changed code with pylint
       run: |
-        find . -type f -name '*.py' | xargs -r pylint --max-line-length=120
+        find . -type f -name '*.py' | xargs -r "$RUNNER_TEMP/venv/bin/pylint" --max-line-length=120
