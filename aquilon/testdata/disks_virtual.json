@@ -1,0 +1,56 @@
+[
+  {
+    "id": 2,
+    "url": "https://netbox.example.org/api/virtualization/virtual-disks/2/?format=json",
+    "display": "sda",
+    "virtual_machine": {
+      "id": 243,
+      "url": "https://netbox.example.org/api/virtualization/virtual-machines/243/?format=json",
+      "display": "vm.example.org",
+      "name": "vm.example.org"
+    },
+    "name": "sda",
+    "description": "",
+    "size": 40,
+    "tags": [],
+    "custom_fields": {},
+    "created": "2025-06-02T13:43:40.552134Z",
+    "last_updated": "2025-06-02T13:43:40.552152Z"
+  },
+  {
+    "id": 3,
+    "url": "https://netbox.example.org/api/virtualization/virtual-disks/3/?format=json",
+    "display": "sdb",
+    "virtual_machine": {
+      "id": 243,
+      "url": "https://netbox.example.org/api/virtualization/virtual-machines/243/?format=json",
+      "display": "vm.example.org",
+      "name": "vm.example.org"
+    },
+    "name": "sdb",
+    "description": "",
+    "size": 100,
+    "tags": [],
+    "custom_fields": {},
+    "created": "2025-06-02T13:43:49.494852Z",
+    "last_updated": "2025-06-02T13:43:49.494873Z"
+  },
+  {
+    "id": 4,
+    "url": "https://netbox.example.org/api/virtualization/virtual-disks/4/?format=json",
+    "display": "sdc",
+    "virtual_machine": {
+      "id": 243,
+      "url": "https://netbox.example.org/api/virtualization/virtual-machines/243/?format=json",
+      "display": "vm.example.org",
+      "name": "vm.example.org"
+    },
+    "name": "sdc",
+    "description": "/opt",
+    "size": 100,
+    "tags": [],
+    "custom_fields": {},
+    "created": "2025-06-02T13:44:01.016349Z",
+    "last_updated": "2025-06-02T13:44:01.016370Z"
+  }
+]

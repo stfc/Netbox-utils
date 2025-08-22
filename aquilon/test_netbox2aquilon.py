@@ -301,3 +301,40 @@ def test__undo_cmds():
     ]
 
     assert test_obj._undo_cmds(cmds_forward) == cmds_reverse
+
+
+def test__netbox_copy_vm_disks(mocker):
+    test_obj = Netbox2Aquilon()
+
+    test_obj.get_disks_from_device = mocker.MagicMock(return_value=deepcopy(FAKE.DISKS_VIRTUAL))
+
+    fake_device = FAKE.DEVICE_VIRTUAL
+    fake_device.aq_machine_name = 'netboxvm-243'
+
+    cmds = test_obj._netbox_copy_vm_disks(fake_device)
+
+    assert cmds == [
+        [
+            'add_disk',
+            '--machine', 'netboxvm-243',
+            '--disk', 'sda',
+            '--controller', 'sata',
+            '--size', '40',
+            '--boot',
+        ],
+        [
+            'add_disk',
+            '--machine', 'netboxvm-243',
+            '--disk', 'sdb',
+            '--controller', 'sata',
+            '--size', '100',
+        ],
+        [
+            'add_disk',
+            '--machine', 'netboxvm-243',
+            '--disk', 'sdc',
+            '--controller', 'sata',
+            '--size', '100',
+            '--comments', '"/opt"',
+        ],
+    ]
