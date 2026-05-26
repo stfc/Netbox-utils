@@ -140,12 +140,15 @@ class Netbox2Aquilon(SCDNetbox):
         if virtual_disks:
             boot = True
             for disk in virtual_disks:
+                # Netbox stores virtual disk size in MB, Aquilon needs it in GB
+                # For netbox 1000 MB = 1GB
+                virtual_disk_gb = round(disk.size / 1000) # to nearest GB
                 cmd = [
                     'add_disk',
                     '--machine', f'{virtual_machine.aq_machine_name}',
                     '--disk', f'{disk.name}',
                     '--controller', 'sata',
-                    '--size', f'{disk.size}',
+                    '--size', f'{virtual_disk_gb}',
                 ]
                 if boot:
                     cmd.append('--boot')
@@ -154,12 +157,14 @@ class Netbox2Aquilon(SCDNetbox):
                     cmd += ['--comments', f'"{disk.description}"']
                 cmds.append(cmd)
         else:
+            # Netbox stores disk size in MB, Aquilon needs it in GB
+            disk_gb = round(virtual_machine.disk / 1000) # to nearest GB
             cmds.append([
                 'add_disk',
                 '--machine', f'{virtual_machine.aq_machine_name}',
                 '--disk', 'sda',
                 '--controller', 'sata',
-                '--size', f'{virtual_machine.disk}',
+                '--size', f'{disk_gb}',
                 '--boot',
             ])
 
