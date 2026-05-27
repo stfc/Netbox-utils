@@ -15,11 +15,18 @@ from scd_netbox import SCDNetbox
 
 
 class Netbox2Aquilon(SCDNetbox):
-    """ Extends base SCDNetbox class with aquilon specific functionality """
+    """
+    Extends base SCDNetbox class with aquilon specific functionality
+    """
 
     @classmethod
     def get_current_sandbox(cls):
-        """ Get owner and name of sandbox if command is being run while inside one """
+        """
+        Get owner and name of sandbox if command is being run while inside one
+
+        :param cls: 
+        :returns: Owner and name of sandbox
+        """
         sandbox = None
         git_rev_parse = subprocess.run(
             ['git', 'rev-parse', '--show-toplevel'],
@@ -35,6 +42,13 @@ class Netbox2Aquilon(SCDNetbox):
         return sandbox
 
     def _call_aq(self, cmd):
+        """
+        Calls aquilon and runs an process based on command
+
+        :param self:
+        :param cmd: Aquilon commands
+        :returns: Process return code
+        """
         logging.info('Calling %s', cmd[0])
         logging.debug(
             'Calling "%s %s"',
@@ -67,6 +81,14 @@ class Netbox2Aquilon(SCDNetbox):
         return process.returncode
 
     def _call_aq_cmds(self, cmds, dryrun=False):
+        """
+        Call aquilon commands and returns list of commands committed in aquilon
+        
+        :param self:
+        :param cmds: Aquilon commands
+        :param dryrun: Boolean for whether to do a dryrun before applying commands
+        :returns: List of commands that were commmitted
+        """
         cmds_committed = []
         for cmd in cmds:
             if dryrun:
@@ -85,6 +107,13 @@ class Netbox2Aquilon(SCDNetbox):
         return cmds_committed
 
     def _netbox_get_device(self, opts):
+        """
+        Get device from Netbox based on device specification
+
+        :param self:
+        :param opts: Option for how to get device with MagDB ID, device name, or hostname
+        :returns: Netbox device
+        """
         if opts.magdb_id:
             device = self.get_device_by_magdb_id(opts.magdb_id)
         elif opts.netboxname:
@@ -108,6 +137,13 @@ class Netbox2Aquilon(SCDNetbox):
         return device
 
     def _netbox_copy_device(self, device):
+        """
+        Copy details of the device in netbox and build command to copy machine into aquilon
+
+        :param self:
+        :param device: Netbox device
+        :returns: Aquilon `add_machine` args for creating netbox device
+        """
         cmds = []
 
         # check if host is in rack - query netbox for rack
@@ -133,6 +169,10 @@ class Netbox2Aquilon(SCDNetbox):
         Check if VM has any new-style virtual disks defined,
         If so, use them and set the first as bootable,
         If not, fall back to the classic single bootable disk method.
+
+        :param self:
+        :param virtual_machine: Virtual machine in netbox
+        :returns: List of `cmd` args for `add_disk` to add disk to machine in aquilon
         """
         cmds = []
 
@@ -166,6 +206,14 @@ class Netbox2Aquilon(SCDNetbox):
         return cmds
 
     def _netbox_copy_vm(self, virtual_machine):
+        """
+        Copy virtual machine details from netbox and build cmd args to add the VM
+        into aquilon
+
+        :param self:
+        :param virtual_machine: Virtual machine in netbox
+        :returns: List of `cmd` args to add VM in aquilon
+        """
         cmds = []
 
         if not virtual_machine.disk:
@@ -195,6 +243,14 @@ class Netbox2Aquilon(SCDNetbox):
         return cmds
 
     def _netbox_copy_interfaces(self, device):
+        """
+        Copy interfaces for a netbox device and add the interface to the matching 
+        machine in aquilon 
+
+        :param self:
+        :param device: Netbox device
+        :returns: List of `cmd` args to add interfaces to the machine in aquilon
+        """
         cmds = []
         interfaces = self.get_interfaces_from_device(device)
         for interface in interfaces:
@@ -244,6 +300,14 @@ class Netbox2Aquilon(SCDNetbox):
         return cmds
 
     def _netbox_copy_addresses(self, device):
+        """
+        Copy IP addresses for a netbox device and add the addresses to the matching 
+        machine in aquilon 
+
+        :param self:
+        :param device: Netbox device
+        :returns: List of `cmd` args to add addresses to the machine in aquilon
+        """
         cmds = []
         interfaces = self.get_interfaces_from_device(device)
         for interface in interfaces:
@@ -267,6 +331,15 @@ class Netbox2Aquilon(SCDNetbox):
         return cmds
 
     def _netbox_get_personality(self, device, archetype, personality=None):
+        """
+        Set the personality to use for a netbox device in aquilon.
+
+        :param self:
+        :param device: Netbox device
+        :param archetype: Aquilon archetype
+        :param personality: Aquilon personality, by default it is `None`
+        :returns: Personality to set for the machine in aquilon
+        """
         if not personality:
             personality = 'inventory'
 
@@ -292,7 +365,13 @@ class Netbox2Aquilon(SCDNetbox):
         return personality
 
     def netbox_copy(self, opts):
-        """ Copy a device from NetBox to Aquilon """
+        """
+        Copy a device from NetBox to Aquilon
+        
+        :param self:
+        :param opts: Option for how to get device in netbox
+        :returns: Process code after executing aquilon command
+        """
         device = self._netbox_get_device(opts)
 
         aqdesttype = None
@@ -374,6 +453,13 @@ class Netbox2Aquilon(SCDNetbox):
 
     @classmethod
     def _undo_cmds(cls, cmds_run):
+        """
+        Class method to reverse changes made with aquilon commands
+
+        :param cls:
+        :param cmds_run: List of commands that had been run
+        :returns: List of commands that have been undone in aquilon
+        """
         cmds_undone = []
 
         # Map of required arguments for delete commands
@@ -401,6 +487,10 @@ class Netbox2Aquilon(SCDNetbox):
 
 
 def _main():
+    """
+    Main method calling `Netbox2Aquilon` class and adding arguments that can be parsed in aquilon
+    and runs `netbox_copy` to copy device into aquilon from netbox
+    """
     logging.basicConfig(format='%(levelname)s: %(message)s')
 
     netbox2aquilon = Netbox2Aquilon(additonal_config_name='netbox2aquilon')

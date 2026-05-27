@@ -17,6 +17,9 @@ FAKE = testdata.load_data()
 
 
 def test_get_current_sandbox(mocker):
+    """
+    Tests the sandbox can be found if present and returns none otherwise
+    """
     test_obj = Netbox2Aquilon()
 
     # git rev-parse succeeds
@@ -45,6 +48,9 @@ def test_get_current_sandbox(mocker):
 
 
 def test__netbox_copy_interfaces(mocker):
+    """
+    Tests that interfaces from device are copied into args for aquilon command
+    """
     test_obj = Netbox2Aquilon()
 
     # Physical devices with a management interface
@@ -122,6 +128,9 @@ def test__netbox_copy_interfaces(mocker):
 
 
 def test__netbox_copy_addresses(mocker):
+    """
+    Tests that addresses from device are copied into args for aquilon command
+    """
     test_obj = Netbox2Aquilon()
 
     fake_device = FAKE.DEVICE_PHYSICAL
@@ -146,6 +155,9 @@ def test__netbox_copy_addresses(mocker):
 
 
 def test__netbox_get_personality(mocker):
+    """
+    Tests that personality for device is defined based on device role
+    """
     test_obj = Netbox2Aquilon()
 
     fake_devices = [
@@ -208,6 +220,9 @@ def test__netbox_get_personality(mocker):
 
 
 def test__undo_cmds():
+    """
+    Test that commands that were run in netbox2aquilon can be reversed
+    """
     test_obj = Netbox2Aquilon()
 
     cmds_forward = [
@@ -304,6 +319,9 @@ def test__undo_cmds():
 
 
 def test__netbox_copy_vm_disks(mocker):
+    """
+    Tests that VM disks from device are copied into args for aquilon command
+    """
     test_obj = Netbox2Aquilon()
 
     test_obj.get_disks_from_device = mocker.MagicMock(return_value=deepcopy(FAKE.DISKS_VIRTUAL))

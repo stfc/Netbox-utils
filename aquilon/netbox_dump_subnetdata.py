@@ -14,7 +14,9 @@ from scd_netbox import SCDNetbox
 
 
 class NetboxDumpSubnetdata(SCDNetbox):
-    """ Extends base SCDNetbox class with functionality to dump subnets to a file """
+    """
+    Extends base SCDNetbox class with functionality to dump subnets to a file
+    """
     def __init__(self):
         super().__init__()
         if 'dump_subnetdata' not in self.config:
@@ -23,11 +25,17 @@ class NetboxDumpSubnetdata(SCDNetbox):
             self.config['dump_subnetdata']['tenants'] = 'tier1,cloud,secops'
 
     def _get_subnet_fields(self):
+        """
+        Get all IPv4 prefixes for configured tenants
+        Aquilon doesn't support syncing IPv6 prefixes via this method
+        We only want prefixes without child prefixes
+        Only synchronise the Global VRF which corresponds to the aquilon "internal" network environment
+        
+        :param self:
+        :returns: IPv4 prefixes for configuered tenants
+        """
         results = []
-        # Get all IPv4 prefixes for configured tenants
-        # Aquilon doesn't support syncing IPv6 prefixes via this method
-        # We only want prefixes without child prefixes
-        # Only synchronise the Global VRF which corresponds to the aquilon "internal" network environment
+
         tenants = [t.strip() for t in self.config['dump_subnetdata']['tenants'].split(',')]
         for prefix in self.netbox.ipam.prefixes.filter(tenant=tenants, family=4, children=0, vrf_id=None):
             subnet_name = prefix.description
@@ -63,6 +71,10 @@ class NetboxDumpSubnetdata(SCDNetbox):
             - A field is a key/value pair, separated by a space
             - The value of the DefaultRouters field is a comma-separated list of IP addresses
             - The value of the UDF field is a list of "<key>=<value>" pairs, separated by ';'
+
+        :param self:
+        :param directory: Directory to write subnet data to
+        :returns: None
         """
         lines = []
         subnet_fields = self._get_subnet_fields()
@@ -77,13 +89,24 @@ class NetboxDumpSubnetdata(SCDNetbox):
             dumpfile.writelines(lines)
 
     def write_subnetdata_json(self, directory):
-        """ Dump subnetdata field structure in JSON format """
+        """
+        Dump subnetdata field structure in JSON format
+        
+        :param self:
+        :param directory: Directory to write data to
+        :returns: None
+        """
         subnet_fields = self._get_subnet_fields()
         with open(os.path.join(directory, 'subnetdata.json'), 'w', encoding='utf-8') as dumpfile:
             json.dump(subnet_fields, dumpfile)
 
 
 def _main():
+    """
+    Main method to collect subnetdata and store in text and json files
+
+    :returns: None
+    """
     logging.basicConfig(format='%(levelname)s: %(message)s')
 
     netbox_dump_subnetdata = NetboxDumpSubnetdata()
