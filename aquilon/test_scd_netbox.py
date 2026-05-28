@@ -152,7 +152,9 @@ def test_get_rack_from_device(mocker):
 
 
 def test_get_interfaces_from_device(mocker):
-    """ Test get_interfaces_from_device """
+    """
+    Test get_interfaces_from_device
+    """
     test_obj = SCDNetbox()
 
     # Test physical interfaces
@@ -176,7 +178,9 @@ def test_get_interfaces_from_device(mocker):
 
 
 def test_get_addresses_from_interface(mocker):
-    """ Test get_addresses_from_interface """
+    """
+    Test get_addresses_from_interface
+    """
     scd_netbox = SCDNetbox()
 
     # Should filter by interface_id if physical

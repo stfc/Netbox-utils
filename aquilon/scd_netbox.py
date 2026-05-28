@@ -53,7 +53,14 @@ class SCDNetbox():
         self.netbox.http_session = netbox_session
 
     def get_device_by_magdb_id(self, magdb_id):
-        """ Get a single device from NetBox based on MagDB system ID """
+        """
+        Get a single device from NetBox based on MagDB system ID
+
+        :param self:
+        :param magdb_id: MagDB ID
+
+        :returns: Netbox device that matches MagDB ID
+        """
         device = self.netbox.dcim.devices.get(cf_magdb_system_id=magdb_id)
 
         if device is None:
@@ -64,7 +71,12 @@ class SCDNetbox():
         return device
 
     def get_device_by_name(self, name):
-        """ Get a single device from NetBox based on device name """
+        """
+        Get a single device from netbox based on device name
+
+        :param self:
+        :param name: Name of device to get from netbox
+        """
         device = self.netbox.dcim.devices.get(name=name)
 
         if device is None:
@@ -75,7 +87,13 @@ class SCDNetbox():
         return device
 
     def get_device_by_hostname(self, hostname):
-        """ Get a single device from NetBox based on fully qualified domain name """
+        """
+        Get a single device from NetBox based on fully qualified domain name
+
+        :param self:
+        :param hostname: Fully qualified domain name
+        :returns: Netbox device matching the FQDN
+        """
         ip_addresses = self.netbox.ipam.ip_addresses.filter(dns_name=hostname, family=4)
         if ip_addresses is None:
             logging.error("Hostname not found in NetBox")
@@ -111,7 +129,12 @@ class SCDNetbox():
         return device
 
     def get_rack_from_device(self, device):
-        """ check if host is in rack - query netbox for rack """
+        """
+        Check if host is in rack - query netbox for rack
+
+        :param self:
+        :param device: Netbox device to find rack location
+        """
         rack = self.netbox.dcim.racks.get(device.rack.id)
 
         if rack is None:
@@ -130,6 +153,10 @@ class SCDNetbox():
         The next step is to add interfaces to the machine in Aquilon
         We need to use 'filter' to retrieve the interface id for all interfaces
         This will assume that the device name IS UNIQUE
+
+        :param self:
+        :param device: Netbox device
+        :returns: List of interfaces for the device
         """
         if isinstance(device, pynetbox.models.dcim.Devices):
             filter_interfaces = self.netbox.dcim.interfaces.filter(device=device.name)
@@ -159,7 +186,13 @@ class SCDNetbox():
         return interfaces
 
     def get_addresses_from_interface(self, interface):
-        """ Get all address objects associated with a physical or virtual interface """
+        """
+        Get all address objects associated with a physical or virtual interface
+
+        :param self:
+        :param interface: Interface associated wiht a device from netbox
+        :returns: List of IP addresses associated with the interface
+        """
         if interface.count_ipaddresses == 0:
             return []
 
@@ -189,6 +222,10 @@ class SCDNetbox():
     def get_disks_from_device(self, device):
         """
         Get all virtual disks associated with a virtual machine
+
+        :param self:
+        :param device: Netbox virtual machine device
+        :returns: List of disks associated with the VM
         """
         if isinstance(device, pynetbox.models.virtualization.VirtualMachines):
             filtered_disks = self.netbox.virtualization.virtual_disks.filter(virtual_machine_id=device.id)

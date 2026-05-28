@@ -18,6 +18,9 @@ FAKE = testdata.load_data()
 
 
 def test__get_subnet_fields(mocker):
+    """
+    Test IPv4 prefixes for configured tenants can be retrieved from netbox
+    """
     test_obj = NetboxDumpSubnetdata()
 
     test_obj.netbox.ipam.prefixes = SimpleNamespace()
@@ -36,6 +39,9 @@ def test__get_subnet_fields(mocker):
 
 
 def test_write_subnetdata_txt(mocker):
+    """
+    Test subnet data can be written to a text file
+    """
     test_obj = NetboxDumpSubnetdata()
 
     test_obj.netbox.ipam.prefixes = SimpleNamespace()
@@ -51,6 +57,9 @@ def test_write_subnetdata_txt(mocker):
 
 
 def test_write_subnetdata_json(mocker):
+    """
+    Test subnet data can be written to a JSON file
+    """
     test_obj = NetboxDumpSubnetdata()
 
     test_obj.netbox.ipam.prefixes = SimpleNamespace()
