@@ -1,0 +1,6 @@
+pynetbox
+pytest
+argparse
+logger
+requests
+nose
