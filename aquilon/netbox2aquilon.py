@@ -24,7 +24,7 @@ class Netbox2Aquilon(SCDNetbox):
         """
         Get owner and name of sandbox if command is being run while inside one
 
-        :param cls: 
+        :param cls:
         :returns: Owner and name of sandbox
         """
         sandbox = None
@@ -83,7 +83,7 @@ class Netbox2Aquilon(SCDNetbox):
     def _call_aq_cmds(self, cmds, dryrun=False):
         """
         Call aquilon commands and returns list of commands committed in aquilon
-        
+
         :param self:
         :param cmds: Aquilon commands
         :param dryrun: Boolean for whether to do a dryrun before applying commands
@@ -244,8 +244,8 @@ class Netbox2Aquilon(SCDNetbox):
 
     def _netbox_copy_interfaces(self, device):
         """
-        Copy interfaces for a netbox device and add the interface to the matching 
-        machine in aquilon 
+        Copy interfaces for a netbox device and add the interface to the matching
+        machine in aquilon
 
         :param self:
         :param device: Netbox device
@@ -301,8 +301,8 @@ class Netbox2Aquilon(SCDNetbox):
 
     def _netbox_copy_addresses(self, device):
         """
-        Copy IP addresses for a netbox device and add the addresses to the matching 
-        machine in aquilon 
+        Copy IP addresses for a netbox device and add the addresses to the matching
+        machine in aquilon
 
         :param self:
         :param device: Netbox device
@@ -367,7 +367,7 @@ class Netbox2Aquilon(SCDNetbox):
     def netbox_copy(self, opts):
         """
         Copy a device from NetBox to Aquilon
-        
+
         :param self:
         :param opts: Option for how to get device in netbox
         :returns: Process code after executing aquilon command

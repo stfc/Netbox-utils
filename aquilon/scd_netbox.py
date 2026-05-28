@@ -53,9 +53,9 @@ class SCDNetbox():
         self.netbox.http_session = netbox_session
 
     def get_device_by_magdb_id(self, magdb_id):
-        """ 
+        """
         Get a single device from NetBox based on MagDB system ID
-        
+
         :param self:
         :param magdb_id: MagDB ID
 
@@ -73,7 +73,7 @@ class SCDNetbox():
     def get_device_by_name(self, name):
         """
         Get a single device from netbox based on device name
-        
+
         :param self:
         :param name: Name of device to get from netbox
         """
@@ -89,7 +89,7 @@ class SCDNetbox():
     def get_device_by_hostname(self, hostname):
         """
         Get a single device from NetBox based on fully qualified domain name
-        
+
         :param self:
         :param hostname: Fully qualified domain name
         :returns: Netbox device matching the FQDN
@@ -131,7 +131,7 @@ class SCDNetbox():
     def get_rack_from_device(self, device):
         """
         Check if host is in rack - query netbox for rack
-        
+
         :param self:
         :param device: Netbox device to find rack location
         """
@@ -188,7 +188,7 @@ class SCDNetbox():
     def get_addresses_from_interface(self, interface):
         """
         Get all address objects associated with a physical or virtual interface
-        
+
         :param self:
         :param interface: Interface associated wiht a device from netbox
         :returns: List of IP addresses associated with the interface

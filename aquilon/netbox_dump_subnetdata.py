@@ -30,9 +30,9 @@ class NetboxDumpSubnetdata(SCDNetbox):
         Aquilon doesn't support syncing IPv6 prefixes via this method
         We only want prefixes without child prefixes
         Only synchronise the Global VRF which corresponds to the aquilon "internal" network environment
-        
+
         :param self:
-        :returns: IPv4 prefixes for configuered tenants
+        :returns: IPv4 prefixes for configured tenants
         """
         results = []
 
@@ -91,7 +91,7 @@ class NetboxDumpSubnetdata(SCDNetbox):
     def write_subnetdata_json(self, directory):
         """
         Dump subnetdata field structure in JSON format
-        
+
         :param self:
         :param directory: Directory to write data to
         :returns: None

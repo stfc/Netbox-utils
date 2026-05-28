@@ -152,7 +152,7 @@ def test_get_rack_from_device(mocker):
 
 
 def test_get_interfaces_from_device(mocker):
-    """ 
+    """
     Test get_interfaces_from_device
     """
     test_obj = SCDNetbox()
